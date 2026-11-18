@@ -2,4 +2,4 @@ Options -Indexes
 RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^api/([A-Za-z0-9/_-]+)$ api.php [QSA,L]
+RewriteRule ^api/(.*)$ api.php [QSA,L]
