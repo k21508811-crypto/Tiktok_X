@@ -1,20 +1,27 @@
 extends CharacterBody3D
 
-const WALK_SPEED := 1.25
+const WALK_SPEED := 1.65
 const ARENA_LIMIT := 20.0
+const DETECT_RANGE := 23.0
+const FIRE_RANGE := 18.0
+const FIRE_INTERVAL := 1.35
+const DAMAGE := 9
 
 var health := 100
 var move_timer := 0.0
 var move_direction := Vector3.ZERO
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var body_root: Node3D
-var torso_material: StandardMaterial3D
-var hit_flash := 0.0
 var animation_time := 0.0
+var attack_cooldown := randf_range(0.4, 1.2)
+var player: CharacterBody3D
+var is_dead := false
 
 func _ready() -> void:
 	_build_collision()
 	_build_character()
+	player = get_tree().current_scene.get_node_or_null("Player") as CharacterBody3D
+	move_timer = randf_range(0.3, 1.0)
 
 func _material(color: Color, roughness: float = 0.78, metallic: float = 0.0) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
@@ -56,7 +63,6 @@ func _build_character() -> void:
 	body_root = Node3D.new()
 	body_root.name = "CharacterModel"
 	add_child(body_root)
-	torso_material = _material(Color("#365b58"), 0.72, 0.08)
 	_capsule(0.31, 0.76, Color("#365b58"), Vector3(0, 1.12, 0), "ArmoredTorso", body_root)
 	_box(Vector3(0.54, 0.30, 0.34), Color("#273b3e"), Vector3(0, 0.78, 0), "PelvisArmor", body_root)
 	var head := SphereMesh.new()
@@ -83,14 +89,28 @@ func _build_character() -> void:
 	_box(Vector3(0.32, 0.12, 0.20), Color("#243535"), Vector3(0, 1.43, 0.13), "Backpack", body_root)
 
 func _physics_process(delta: float) -> void:
-	if health <= 0:
+	if is_dead:
 		return
 	animation_time += delta
-	move_timer -= delta
-	if move_timer <= 0.0:
-		move_timer = randf_range(1.2, 2.8)
-		var angle := randf() * TAU
-		move_direction = Vector3(cos(angle), 0, sin(angle)) * randf_range(0.35, 1.0)
+	attack_cooldown = maxf(0.0, attack_cooldown - delta)
+	if not is_instance_valid(player):
+		player = get_tree().current_scene.get_node_or_null("Player") as CharacterBody3D
+	if is_instance_valid(player) and not player.get("is_dead"):
+		var to_player := player.global_position - global_position
+		var distance := to_player.length()
+		if distance <= DETECT_RANGE:
+			var flat_direction := Vector3(to_player.x, 0, to_player.z).normalized()
+			body_root.rotation.y = lerp_angle(body_root.rotation.y, atan2(-flat_direction.x, -flat_direction.z), delta * 5.0)
+			if distance > 9.0:
+				move_direction = flat_direction
+			else:
+				move_direction = Vector3.ZERO
+			if distance <= FIRE_RANGE and attack_cooldown <= 0.0:
+				_try_attack()
+		else:
+			_wander(delta)
+	else:
+		_wander(delta)
 	if position.x < -ARENA_LIMIT or position.x > ARENA_LIMIT:
 		move_direction.x = -signf(position.x)
 	if position.z < -ARENA_LIMIT or position.z > ARENA_LIMIT:
@@ -101,14 +121,35 @@ func _physics_process(delta: float) -> void:
 	velocity.z = move_direction.z * WALK_SPEED
 	move_and_slide()
 	body_root.position.y = sin(animation_time * 5.0) * 0.018
+
+func _wander(delta: float) -> void:
+	move_timer -= delta
+	if move_timer <= 0.0:
+		move_timer = randf_range(1.2, 2.8)
+		var angle := randf() * TAU
+		move_direction = Vector3(cos(angle), 0, sin(angle)) * randf_range(0.35, 1.0)
 	if move_direction.length() > 0.05:
-		body_root.rotation.y = lerp_angle(body_root.rotation.y, atan2(-move_direction.x, -move_direction.z), delta * 4.0)
-	if hit_flash > 0.0:
-		hit_flash -= delta
+		body_root.rotation.y = lerp_angle(body_root.rotation.y, atan2(-move_direction.x, -move_direction.z), delta * 2.5)
+
+func _try_attack() -> void:
+	attack_cooldown = FIRE_INTERVAL
+	if not is_instance_valid(player) or player.get("is_dead"):
+		return
+	var origin := global_position + Vector3.UP * 1.45
+	var target_point: Vector3 = player.global_position + Vector3.UP * 1.35
+	var query := PhysicsRayQueryParameters3D.create(origin, target_point)
+	query.exclude = [self]
+	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	if not result.is_empty() and result.get("collider") == player and player.has_method("take_damage"):
+		player.take_damage(DAMAGE)
 
 func take_damage(amount: int) -> void:
-	if health <= 0:
+	if is_dead:
 		return
 	health = maxi(0, health - amount)
-	if health == 0:
+	if health <= 0:
+		is_dead = true
+		var root := get_tree().current_scene
+		if root.has_method("register_kill"):
+			root.register_kill()
 		queue_free()
