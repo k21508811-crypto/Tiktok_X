@@ -24,6 +24,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.DisposableEffect
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,6 +53,33 @@ class MainActivity : ComponentActivity() {
 private data class AppUser(val id: Long, val username: String, val email: String, val displayName: String = "", val bio: String = "", val verified: Boolean = false)
 private data class AppVideo(val id: Long, val username: String, val caption: String, val url: String, val likes: Int, val comments: Int, val views: Long)
 private data class AppComment(val id: Long, val username: String, val body: String)
+
+@Composable
+private fun VideoPlayback(url: String) {
+    val context = LocalContext.current
+    val player = remember(url) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(url))
+            repeatMode = ExoPlayer.REPEAT_MODE_ONE
+            playWhenReady = true
+            prepare()
+        }
+    }
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+    AndroidView(
+        modifier = Modifier.fillMaxWidth().aspectRatio(9f / 16f).padding(top = 10.dp),
+        factory = { viewContext ->
+            PlayerView(viewContext).apply {
+                this.player = player
+                useController = true
+                setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+            }
+        },
+        update = { it.player = player }
+    )
+}
 
 @Composable
 private fun TikTokXRoot() {
@@ -241,12 +273,11 @@ private fun MainScreen(
                             Card(Modifier.fillMaxWidth().padding(vertical = 8.dp), colors = CardDefaults.cardColors(containerColor = AppSurface)) {
                                 Column(Modifier.padding(14.dp)) {
                                     Text("@${video.username}", color = Color.White, style = MaterialTheme.typography.titleMedium)
-                                    Text(video.caption, color = Color.LightGray, modifier = Modifier.padding(top = 8.dp))
                                     if (video.url.isNotBlank()) {
-                                        Text("Открыть видео", color = AppAccent, modifier = Modifier.padding(top = 10.dp).clickable {
-                                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(video.url))) }
-                                        })
+                                        VideoPlayback(video.url)
                                     }
+                                    Text(video.caption, color = Color.LightGray, modifier = Modifier.padding(top = 8.dp))
+
                                     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text("♥ ${video.likes}", color = Color.White, modifier = Modifier.clickable {
                                             scope.launch { runCatching { withContext(Dispatchers.IO) { Api.like(base, token, video.id) }; loadFeed() }.onFailure { status = it.message ?: "Ошибка лайка" } }
