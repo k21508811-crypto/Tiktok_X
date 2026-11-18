@@ -102,7 +102,7 @@ func _build_mobile_controls() -> void:
 	add_child(controls_layer)
 	var controls := Control.new()
 	controls.set_script(MOBILE_CONTROLS_SCRIPT)
-	controls.player = player
+	controls.set("player", player)
 	controls_layer.add_child(controls)
 
 func update_hud(text_value: String) -> void:
