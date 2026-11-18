@@ -2,6 +2,7 @@ extends Node3D
 
 const PLAYER_SCENE_SCRIPT = preload("res://scripts/player.gd")
 const BOT_SCENE_SCRIPT = preload("res://scripts/bot.gd")
+const MOBILE_CONTROLS_SCRIPT = preload("res://scripts/mobile_controls.gd")
 
 var player: CharacterBody3D
 var hud: CanvasLayer
@@ -13,6 +14,7 @@ func _ready() -> void:
 	_spawn_player()
 	_spawn_bots()
 	_build_hud()
+	_build_mobile_controls()
 
 func _build_lighting() -> void:
 	var sun := DirectionalLight3D.new()
@@ -66,6 +68,7 @@ func _spawn_player() -> void:
 	player = CharacterBody3D.new()
 	player.set_script(PLAYER_SCENE_SCRIPT)
 	player.position = Vector3(0, 1.2, 15)
+	player.name = "Player"
 	add_child(player)
 
 func _spawn_bots() -> void:
@@ -90,6 +93,17 @@ func _build_hud() -> void:
 	hint.text = "WASD move • Mouse look • LMB fire • R reload"
 	hint.position = Vector2(18, 104)
 	hud.add_child(hint)
+
+func _build_mobile_controls() -> void:
+	if not DisplayServer.is_touchscreen_available():
+		return
+	var controls_layer := CanvasLayer.new()
+	controls_layer.layer = 2
+	add_child(controls_layer)
+	var controls := Control.new()
+	controls.set_script(MOBILE_CONTROLS_SCRIPT)
+	controls.player = player
+	controls_layer.add_child(controls)
 
 func update_hud(text_value: String) -> void:
 	if is_instance_valid(status_label):
