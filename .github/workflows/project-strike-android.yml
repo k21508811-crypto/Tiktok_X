@@ -30,10 +30,29 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK packages required by Godot 4.4
         run: |
           yes | sdkmanager --licenses >/dev/null
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "cmdline-tools;latest" \
+            "cmake;3.10.2.4988404" \
+            "ndk;23.2.8568313"
+
+      - name: Create temporary Android debug keystore
+        run: |
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Install Godot 4.4.1
         uses: chickensoft-games/setup-godot@v2
@@ -52,6 +71,10 @@ jobs:
         run: godot --headless --editor --path PROJECT_STRIKE --quit
 
       - name: Export debug APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/../.android/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p PROJECT_STRIKE/build
           godot --headless --path PROJECT_STRIKE --export-debug "Android" PROJECT_STRIKE/build/PROJECT_STRIKE-debug.apk
