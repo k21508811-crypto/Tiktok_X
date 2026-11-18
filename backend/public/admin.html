@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TikTok X — Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#09090d;color:#f5f5f7;font:15px system-ui,Arial}header{padding:22px 5vw;background:#121218;border-bottom:1px solid #292932;display:flex;justify-content:space-between;align-items:center}h1{font-size:22px;margin:0}main{max-width:1100px;margin:26px auto;padding:0 16px}.panel{background:#15151d;border:1px solid #292932;border-radius:16px;padding:18px;margin-bottom:18px}input,button{font:inherit;border-radius:10px;padding:11px 13px;border:1px solid #393945;background:#0c0c12;color:#fff}input{width:100%;margin:6px 0 12px}button{cursor:pointer;background:#fe2c55;border:0;font-weight:700;margin:4px}button.secondary{background:#34343e}.muted{color:#a7a7b3}.item{padding:13px 0;border-top:1px solid #30303a;display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}.item p{margin:4px 0}.status{color:#25f4ee}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}small{color:#aaa}
+</style></head><body>
+<header><h1>TikTok X · Панель администратора</h1><span class="status">CONTROL CENTER</span></header>
+<main>
+<section class="panel"><label>Адрес API</label><input id="api" placeholder="https://ваш-домен/api"><label>Токен администратора</label><input id="token" type="password" placeholder="Bearer token (из входа в приложение)"><button onclick="load()">Загрузить данные</button><span id="message" class="muted"></span></section>
+<div class="grid"><section class="panel"><h2>Жалобы</h2><div id="reports" class="muted">Нет данных</div></section><section class="panel"><h2>Верификация</h2><div id="verification" class="muted">Нет данных</div></section></div>
+<section class="panel"><h2>Последние видео</h2><div id="videos" class="muted">Нет данных</div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+async function call(path,method='GET',body=null){const base=$('api').value.trim().replace(/\/$/,'');if(!base.startsWith('https://'))throw Error('Укажи HTTPS адрес API');const r=await fetch(base+path,{method,headers:{'Authorization':'Bearer '+$('token').value.trim(),'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||('HTTP '+r.status));return j}
+async function load(){try{$('message').textContent='Загрузка...';const d=await call('/admin/overview');$('reports').innerHTML=d.reports.map(x=>'<div class="item"><div><b>#'+x.id+' · '+x.target_type+' '+x.target_id+'</b><p>'+esc(x.reason)+' · '+esc(x.details||'')+'</p></div><button onclick="report('+x.id+',\'dismissed\')">Закрыть</button></div>').join('')||'Нет жалоб';$('verification').innerHTML=d.verification_requests.map(x=>'<div class="item"><div><b>@'+esc(x.username)+'</b><p>'+esc(x.reason)+'</p></div><div><button onclick="verify('+x.id+',\'approved\')">Подтвердить</button><button class="secondary" onclick="verify('+x.id+',\'rejected\')">Отклонить</button></div></div>').join('')||'Нет заявок';$('videos').innerHTML=d.videos.map(x=>'<div class="item"><div><b>#'+x.id+' · @'+esc(x.username)+'</b><p>'+esc(x.caption)+'</p><small>'+esc(x.video_path)+'</small></div><div><button class="secondary" onclick="moderate('+x.id+',\'hidden\')">Скрыть</button><button onclick="moderate('+x.id+',\'removed\')">Удалить</button></div></div>').join('')||'Нет видео';$('message').textContent='Данные обновлены'}catch(e){$('message').textContent=e.message}}
+async function report(id,status){try{await call('/admin/reports/'+id,'POST',{status});load()}catch(e){alert(e.message)}}
+async function verify(id,status){try{await call('/admin/verification/'+id,'POST',{status});load()}catch(e){alert(e.message)}}
+async function moderate(id,status){try{await call('/admin/videos/'+id+'/status','POST',{status});load()}catch(e){alert(e.message)}}
+function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+</script></body></html>
