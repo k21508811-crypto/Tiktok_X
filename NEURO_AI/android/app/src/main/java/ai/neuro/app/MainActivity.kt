@@ -68,6 +68,7 @@ class MainActivity : ComponentActivity() {
 private fun NeuroApp() {
     var intro by remember { mutableStateOf(true) }
     var selected by remember { mutableStateOf("ChatGPT") }
+    var assistantSearch by remember { mutableStateOf("") }
     var premiumInfo by remember { mutableStateOf(false) }
     var currentWebView by remember { mutableStateOf<WebView?>(null) }
 
@@ -110,13 +111,29 @@ private fun NeuroApp() {
                 item {
                     Text("ИИ-СЕРВИСЫ", color = muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                     Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = assistantSearch,
+                        onValueChange = { assistantSearch = it },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        singleLine = true,
+                        placeholder = { Text("Поиск ИИ-помощника…", color = muted) },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = purple, unfocusedBorderColor = Color(0xFF393044),
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                            cursorColor = purple
+                        )
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                        services.forEach { service ->
+                        services.filter { it.title.contains(assistantSearch, true) || it.subtitle.contains(assistantSearch, true) }.forEach { service ->
                             ServiceTile(service.title, selected == service.title, Modifier) {
                                 currentWebView = null
                                 selected = service.title
                             }
                         }
+                    }
+                    if (services.none { it.title.contains(assistantSearch, true) || it.subtitle.contains(assistantSearch, true) }) {
+                        Text("Ничего не найдено", color = muted, fontSize = 11.sp, modifier = Modifier.padding(8.dp))
                     }
                     Spacer(Modifier.height(8.dp))
                     Card(
