@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
 
 private data class AppUser(val id: Long, val username: String, val email: String, val displayName: String = "", val bio: String = "", val verified: Boolean = false)
 private data class AppVideo(val id: Long, val username: String, val caption: String, val url: String, val likes: Int, val comments: Int, val views: Long)
+private data class AppComment(val id: Long, val username: String, val body: String)
 
 @Composable
 private fun TikTokXRoot() {
@@ -182,6 +183,9 @@ private fun MainScreen(
     var busy by remember { mutableStateOf(false) }
     var selectedVideo by remember { mutableStateOf<Uri?>(null) }
     var captionDraft by remember { mutableStateOf("") }
+    var commentVideo by remember { mutableStateOf<AppVideo?>(null) }
+    var commentItems by remember { mutableStateOf<List<AppComment>>(emptyList()) }
+    var commentDraft by remember { mutableStateOf("") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { selectedVideo = it }
 
     fun loadFeed() {
@@ -245,7 +249,13 @@ private fun MainScreen(
                                         Text("♥ ${video.likes}", color = Color.White, modifier = Modifier.clickable {
                                             scope.launch { runCatching { withContext(Dispatchers.IO) { Api.like(base, token, video.id) }; loadFeed() }.onFailure { status = it.message ?: "Ошибка лайка" } }
                                         })
-                                        Text("Комментарии: ${video.comments}", color = Color.White)
+                                        Text("Комментарии: ${video.comments}", color = Color.White, modifier = Modifier.clickable {
+                                            commentVideo = video
+                                            scope.launch {
+                                                try { commentItems = withContext(Dispatchers.IO) { Api.comments(base, token, video.id) } }
+                                                catch (e: Exception) { status = e.message ?: "Ошибка комментариев" }
+                                            }
+                                        })
                                         Text("Просмотры: ${video.views}", color = Color.Gray)
                                     }
                                 }
@@ -276,6 +286,32 @@ private fun MainScreen(
                 }
             }
         }
+    }
+    commentVideo?.let { selected ->
+        AlertDialog(
+            onDismissRequest = { commentVideo = null },
+            title = { Text("Комментарии") },
+            text = {
+                Column {
+                    if (commentItems.isEmpty()) Text("Комментариев пока нет", color = Color.LightGray)
+                    commentItems.forEach { Text("@" + it.username + ": " + it.body, color = Color.White, modifier = Modifier.padding(vertical = 4.dp)) }
+                    OutlinedTextField(commentDraft, { commentDraft = it }, label = { Text("Написать комментарий") }, maxLines = 3)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) { Api.addComment(base, token, selected.id, commentDraft) }
+                            commentItems = withContext(Dispatchers.IO) { Api.comments(base, token, selected.id) }
+                            commentDraft = ""
+                            loadFeed()
+                        } catch (e: Exception) { status = e.message ?: "Ошибка отправки комментария" }
+                    }
+                }) { Text("Отправить", color = AppAccent) }
+            },
+            dismissButton = { TextButton(onClick = { commentVideo = null }) { Text("Закрыть") } }
+        )
     }
     selectedVideo?.let { uri ->
         AlertDialog(
@@ -377,6 +413,14 @@ private object Api {
     fun search(base: String, token: String, query: String): List<AppUser> {
         val a = request(base, "/search?q=" + URLEncoder.encode(query, "UTF-8"), "GET", token = token).optJSONArray("users") ?: return emptyList()
         return buildList { for (i in 0 until a.length()) { val u = a.getJSONObject(i); add(AppUser(u.getLong("id"), u.optString("username"), "", u.optString("display_name"), verified = u.optInt("is_verified") == 1)) } }
+    }
+    fun comments(base: String, token: String, id: Long): List<AppComment> {
+        val a = request(base, "/videos/" + id + "/comments", "GET", token = token).optJSONArray("comments") ?: return emptyList()
+        return buildList { for (i in 0 until a.length()) { val x = a.getJSONObject(i); add(AppComment(x.getLong("id"), x.optString("username"), x.optString("body"))) } }
+    }
+    fun addComment(base: String, token: String, id: Long, body: String) {
+        require(body.isNotBlank()) { "Комментарий пустой" }
+        request(base, "/videos/" + id + "/comments", "POST", JSONObject().put("body", body), token)
     }
     fun uploadVideo(context: Context, base: String, token: String, uri: Uri, caption: String) {
         val boundary = "TikTokX-" + System.currentTimeMillis()
