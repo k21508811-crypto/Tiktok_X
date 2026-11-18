@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
 private data class AppUser(val id: Long, val username: String, val email: String, val displayName: String = "", val bio: String = "", val verified: Boolean = false)
 private data class AppVideo(val id: Long, val username: String, val caption: String, val url: String, val likes: Int, val comments: Int, val views: Long)
 private data class AppComment(val id: Long, val username: String, val body: String)
+private data class AppMusic(val id: Long, val username: String, val title: String, val url: String)
 
 @Composable
 private fun VideoPlayback(url: String) {
@@ -211,6 +212,9 @@ private fun MainScreen(
     var status by remember { mutableStateOf("Загружаем данные...") }
     var busy by remember { mutableStateOf(false) }
     var selectedVideo by remember { mutableStateOf<Uri?>(null) }
+    var selectedAudio by remember { mutableStateOf<Uri?>(null) }
+    var audioTitle by remember { mutableStateOf("") }
+    var musicItems by remember { mutableStateOf<List<AppMusic>>(emptyList()) }
     var captionDraft by remember { mutableStateOf("") }
     var commentVideo by remember { mutableStateOf<AppVideo?>(null) }
     var commentItems by remember { mutableStateOf<List<AppComment>>(emptyList()) }
@@ -219,6 +223,7 @@ private fun MainScreen(
     var bioDraft by remember { mutableStateOf(initialUser?.bio ?: "") }
     var verificationReason by remember { mutableStateOf("") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { selectedVideo = it }
+    val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { selectedAudio = it }
 
     fun loadFeed() {
         scope.launch {
@@ -257,8 +262,8 @@ private fun MainScreen(
         },
         bottomBar = {
             NavigationBar(containerColor = AppSurface) {
-                listOf("Лента", "Поиск", "Профиль").forEachIndexed { i, label ->
-                    val icon = when (i) { 0 -> Icons.Default.Home; 1 -> Icons.Default.Search; else -> Icons.Default.Person }
+                listOf("Лента", "Поиск", "Музыка", "Профиль").forEachIndexed { i, label ->
+                    val icon = when (i) { 0 -> Icons.Default.Home; 1 -> Icons.Default.Search; 2 -> Icons.Default.MusicNote; else -> Icons.Default.Person }
                     NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { Icon(icon, null) }, label = { Text(label) })
                 }
             }
@@ -320,6 +325,31 @@ private fun MainScreen(
                     }
                     if (status.isNotBlank()) Text(status, color = Color.LightGray)
                 }
+                2 -> {
+                    Text("Музыка", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 10.dp)) {
+                        Button(onClick = { audioPicker.launch(arrayOf("audio/*")) }, colors = ButtonDefaults.buttonColors(containerColor = AppAccent)) { Text("Загрузить аудио") }
+                        OutlinedButton(onClick = {
+                            scope.launch { try { musicItems = withContext(Dispatchers.IO) { Api.music(base, token) }; status = "Музыка обновлена" } catch (e: Exception) { status = e.message ?: "Ошибка музыки" } }
+                        }) { Text("Обновить") }
+                    }
+                    if (musicItems.isEmpty()) Text("Пока нет загруженных треков. Загрузи первый аудиофайл.", color = Color.LightGray)
+                    LazyColumn {
+                        items(musicItems, key = { it.id }) { track ->
+                            Card(Modifier.fillMaxWidth().padding(vertical = 5.dp), colors = CardDefaults.cardColors(containerColor = AppSurface)) {
+                                Row(Modifier.fillMaxWidth().clickable { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(track.url))) } }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.MusicNote, null, tint = AppAccent)
+                                    Column(Modifier.padding(start = 12.dp).weight(1f)) {
+                                        Text(track.title, color = Color.White)
+                                        Text("@\${track.username}", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    Icon(Icons.Default.PlayArrow, null, tint = Color.White)
+                                }
+                            }
+                        }
+                    }
+                    if (status.isNotBlank()) Text(status, color = Color.LightGray)
+                }
                 else -> {
                     Text(currentUser?.displayName?.ifBlank { currentUser?.username ?: "Профиль" } ?: "Профиль", color = Color.White, style = MaterialTheme.typography.headlineSmall)
                     Text("@${currentUser?.username ?: ""}", color = Color.LightGray, modifier = Modifier.padding(top = 8.dp))
@@ -376,6 +406,29 @@ private fun MainScreen(
                 }) { Text("Отправить", color = AppAccent) }
             },
             dismissButton = { TextButton(onClick = { commentVideo = null }) { Text("Закрыть") } }
+        )
+    }
+    selectedAudio?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { selectedAudio = null },
+            title = { Text("Загрузка музыки") },
+            text = { OutlinedTextField(audioTitle, { audioTitle = it }, label = { Text("Название трека") }, singleLine = true) },
+            confirmButton = {
+                TextButton(enabled = !busy, onClick = {
+                    scope.launch {
+                        busy = true
+                        try {
+                            withContext(Dispatchers.IO) { Api.uploadMusic(context, base, token, uri, audioTitle) }
+                            selectedAudio = null
+                            audioTitle = ""
+                            musicItems = withContext(Dispatchers.IO) { Api.music(base, token) }
+                            status = "Трек опубликован"
+                        } catch (e: Exception) { status = e.message ?: "Ошибка загрузки музыки" }
+                        finally { busy = false }
+                    }
+                }) { Text(if (busy) "Загрузка..." else "Опубликовать", color = AppAccent) }
+            },
+            dismissButton = { TextButton(onClick = { selectedAudio = null }) { Text("Отмена") } }
         )
     }
     selectedVideo?.let { uri ->
@@ -478,6 +531,31 @@ private object Api {
             val mime = context.contentResolver.getType(uri) ?: "video/mp4"
             out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"video\"; filename=\"clip\"\r\nContent-Type: " + mime + "\r\n\r\n").toByteArray(Charsets.UTF_8))
             context.contentResolver.openInputStream(uri)?.use { input -> input.copyTo(out, 65536) } ?: throw IllegalStateException("Не удалось прочитать видео")
+            out.write(("\r\n--" + boundary + "--\r\n").toByteArray(Charsets.UTF_8))
+        }
+        val code = c.responseCode
+        val raw = (if (code in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
+        c.disconnect()
+        val json = try { JSONObject(raw) } catch (_: Exception) { throw IllegalStateException("Сервер вернул HTTP " + code) }
+        if (code !in 200..299 || !json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error", "Ошибка загрузки"))
+    }
+    fun music(base: String, token: String): List<AppMusic> {
+        val a = request(base, "/music", "GET", token = token).optJSONArray("music") ?: return emptyList()
+        return buildList { for (i in 0 until a.length()) { val x = a.getJSONObject(i); add(AppMusic(x.getLong("id"), x.optString("username"), x.optString("title"), x.optString("file_path"))) } }
+    }
+    fun uploadMusic(context: Context, base: String, token: String, uri: Uri, title: String) {
+        require(title.isNotBlank()) { "Укажи название трека" }
+        val boundary = "TikTokXAudio-" + System.currentTimeMillis()
+        val c = URL(endpoint(base, "/upload-music")).openConnection() as HttpURLConnection
+        c.requestMethod = "POST"; c.connectTimeout = 20000; c.readTimeout = 120000; c.doOutput = true
+        c.setRequestProperty("Authorization", "Bearer " + token)
+        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary)
+        c.setChunkedStreamingMode(65536)
+        c.outputStream.use { out ->
+            out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\n" + title + "\r\n").toByteArray(Charsets.UTF_8))
+            val mime = context.contentResolver.getType(uri) ?: "audio/mpeg"
+            out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"audio\"; filename=\"track\"\r\nContent-Type: " + mime + "\r\n\r\n").toByteArray(Charsets.UTF_8))
+            context.contentResolver.openInputStream(uri)?.use { it.copyTo(out, 65536) } ?: throw IllegalStateException("Не удалось прочитать аудио")
             out.write(("\r\n--" + boundary + "--\r\n").toByteArray(Charsets.UTF_8))
         }
         val code = c.responseCode
