@@ -222,6 +222,10 @@ private fun MainScreen(
     var displayNameDraft by remember { mutableStateOf(initialUser?.displayName ?: "") }
     var bioDraft by remember { mutableStateOf(initialUser?.bio ?: "") }
     var verificationReason by remember { mutableStateOf("") }
+    var digitalId by remember { mutableStateOf("") }
+    var businessName by remember { mutableStateOf("") }
+    var businessCategory by remember { mutableStateOf("") }
+    var businessDescription by remember { mutableStateOf("") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { selectedVideo = it }
     val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { selectedAudio = it }
 
@@ -377,6 +381,30 @@ private fun MainScreen(
                             } catch (e: Exception) { status = e.message ?: "Ошибка заявки" }
                         }
                     }, modifier = Modifier.padding(top = 8.dp)) { Text("Запросить верификацию") }
+                    OutlinedTextField(businessName, { businessName = it }, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), label = { Text("Название бизнес-аккаунта") }, singleLine = true)
+                    OutlinedTextField(businessCategory, { businessCategory = it }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), label = { Text("Категория бизнеса") }, singleLine = true)
+                    OutlinedTextField(businessDescription, { businessDescription = it }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), label = { Text("Описание бизнеса") }, maxLines = 3)
+                    Button(onClick = {
+                        scope.launch {
+                            try { withContext(Dispatchers.IO) { Api.saveBusiness(base, token, businessName, businessCategory, businessDescription) }; status = "Бизнес-профиль сохранён" }
+                            catch (e: Exception) { status = e.message ?: "Ошибка бизнес-профиля" }
+                        }
+                    }, modifier = Modifier.padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppAccent)) { Text("Сохранить бизнес-профиль") }
+                    OutlinedButton(onClick = {
+                        scope.launch {
+                            try { digitalId = withContext(Dispatchers.IO) { Api.digitalId(base, token) }; status = "Цифровой ID загружен" }
+                            catch (e: Exception) { status = e.message ?: "Ошибка цифрового ID" }
+                        }
+                    }, modifier = Modifier.padding(top = 10.dp)) { Text("Мой цифровой ID") }
+                    if (digitalId.isNotBlank()) {
+                        Card(Modifier.fillMaxWidth().padding(top = 8.dp), colors = CardDefaults.cardColors(containerColor = AppSurface)) {
+                            Column(Modifier.padding(14.dp)) {
+                                Text("TikTok X · DIGITAL ID", color = AppAccent, style = MaterialTheme.typography.labelLarge)
+                                Text(digitalId, color = Color.White, style = MaterialTheme.typography.titleMedium)
+                                Text("@\${currentUser?.username ?: ""}", color = Color.LightGray)
+                            }
+                        }
+                    }
                     if (status.isNotBlank()) Text(status, color = Color.LightGray, modifier = Modifier.padding(top = 10.dp))
                 }
             }
@@ -566,6 +594,13 @@ private object Api {
     }
     fun follow(base: String, token: String, id: Long) { request(base, "/users/" + id + "/follow", "POST", JSONObject(), token) }
     fun updateProfile(base: String, token: String, displayName: String, bio: String) { request(base, "/profile", "PUT", JSONObject().put("display_name", displayName).put("bio", bio), token) }
+    fun digitalId(base: String, token: String): String {
+        return request(base, "/digital-id", "GET", token = token).optString("digital_id")
+    }
+    fun saveBusiness(base: String, token: String, name: String, category: String, description: String) {
+        require(name.isNotBlank()) { "Укажи название бизнес-аккаунта" }
+        request(base, "/business-profile", "PUT", JSONObject().put("business_name", name).put("category", category).put("description", description), token)
+    }
     fun requestVerification(base: String, token: String, reason: String) { require(reason.trim().length >= 20) { "Опиши причину минимум в 20 символах" }; request(base, "/verification", "POST", JSONObject().put("reason", reason), token) }
     fun like(base: String, token: String, id: Long) { request(base, "/videos/$id/like", "POST", JSONObject(), token) }
 }
