@@ -13,7 +13,7 @@ Import `database/schema.sql` in phpMyAdmin. It uses `CREATE TABLE IF NOT EXISTS`
 ## PHP deployment
 
 1. Copy the contents of `backend/public/` to the website document root (or a dedicated subfolder).
-2. Copy `backend/config.example.php` to `backend/config.php` (outside the public document root if the hosting layout allows it).
+2. Copy `backend/config.example.php` to `config.php` exactly one directory above the folder containing `api.php`. If you upload the contents of `backend/public/` directly into `public_html/`, put `config.php` one level above `public_html/`. If you keep the `backend/public/` folder structure, put it in `backend/config.php`.
 3. Set the actual database password only in that server-side `config.php`. Never commit it to GitHub and never put it in the APK.
 4. Enable PHP 8+, PDO MySQL, mbstring and fileinfo. Enable HTTPS.
 5. For video upload, set PHP `upload_max_filesize` and `post_max_size` to at least `105M`; the API itself limits each video to 100 MB.
