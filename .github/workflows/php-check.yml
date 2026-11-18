@@ -1,0 +1,23 @@
+name: PHP backend check
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tiktokx-php-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+      - name: Lint backend PHP
+        run: |
+          php -l backend/public/api.php
+          php -l backend/config.example.php
