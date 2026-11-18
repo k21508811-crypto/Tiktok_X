@@ -20,7 +20,7 @@ Known database settings:
 
 ## 3. Deploy the API
 
-Upload the contents of `backend/public/` to a web-accessible directory such as `public_html/api/`, and place the private `config.php` one directory above that public folder. Keep the supplied `.htaccess` alongside `api.php`.
+Upload the contents of `backend/public/` directly into the website document root (usually `public_html/`), so `api.php` is available at `/api.php` and the rewrite rule exposes routes such as `/api/health`. Place the private `config.php` one directory above the document root (for example, beside `public_html/`). Keep the supplied `.htaccess` alongside `api.php`.
 
 The API routes include:
 - `GET /api/health`
