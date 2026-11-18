@@ -159,6 +159,7 @@ private fun AuthScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MainScreen(
     base: String, token: String, initialUser: AppUser?,
