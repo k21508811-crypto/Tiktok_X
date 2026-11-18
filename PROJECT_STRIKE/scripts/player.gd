@@ -25,14 +25,16 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.position.y = 1.55
 	camera.current = true
+	camera.name = "Camera3D"
 	add_child(camera)
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if not DisplayServer.is_touchscreen_available():
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
 		camera.rotate_x(-event.relative.y * MOUSE_SENSITIVITY)
-		camera.rotation.x = clamp(camera.rotation.x, -1.45, 1.45)
+		camera.rotation.x = clampf(camera.rotation.x, -1.45, 1.45)
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -53,7 +55,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0, SPEED * 7 * delta)
 		velocity.z = move_toward(velocity.z, 0, SPEED * 7 * delta)
 	move_and_slide()
-	if Input.is_action_just_pressed("fire"):
+	if Input.is_action_pressed("fire"):
 		_fire()
 	if Input.is_action_just_pressed("reload"):
 		_reload()
