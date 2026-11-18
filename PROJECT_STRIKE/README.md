@@ -1,19 +1,23 @@
 # PROJECT STRIKE — Android FPS prototype
 
-This is a separate game project inside the repository. Existing TikTok X files are not modified.
+A separate Godot 4 project inside the existing repository. The original TikTok X files remain outside this folder and are not part of the game.
 
-## Engine
-Godot 4.x, 3D, GDScript. The first milestone is a locally playable FPS prototype with touch-friendly controls, a training arena, target bots, health, armor, and a basic weapon loop.
+## Current prototype
+- Procedural greybox training arena (temporary blockout, not final environment art)
+- First-person movement, mouse look, jump, hitscan training weapon and reload loop
+- Android touch UI: virtual movement stick, swipe look, fire, reload and jump buttons
+- Humanoid armored training targets assembled from 3D meshes
+- Basic target movement and health
+- HUD for health, armor and ammunition
 
-## Current scope
-- Procedurally assembled greybox training arena (temporary blockout, not final art)
-- First-person movement and camera
-- Hitscan practice weapon with magazine/reload loop
-- Simple bot target AI for gameplay testing
-- Local settings/save data
+## Open locally
+Open project.godot from this folder in Godot 4.4.1 or a compatible Godot 4 release.
 
-## Important
-This is an early prototype, not a finished 1 GB commercial game and not a Standoff 2 equivalent. Final character/weapon models, animations, audio, maps, optimization, QA, and Android packaging are separate production milestones. Use properly licensed assets only.
+## Automated checks
+GitHub Actions workflow: .github/workflows/project-strike-checks.yml.
+It imports/parses the project and performs a short headless startup smoke test. A green workflow is required before calling the project validated.
 
-## Open
-Open this folder in Godot 4.x. Set `scenes/main.tscn` as the main scene if prompted.
+## Current limitations
+This is still an early prototype. It is not a finished commercial game and is not equivalent to Standoff 2 or Call of Duty. Final character rigs, animations, weapon models, audio, environment art, combat AI, menus, progression, optimization, device testing, Android export configuration and APK packaging remain to be implemented and tested. The current bots are procedural placeholders, not final character assets.
+
+Use properly licensed assets only.
