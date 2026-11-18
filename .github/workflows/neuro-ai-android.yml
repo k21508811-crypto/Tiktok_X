@@ -32,40 +32,44 @@ jobs:
           if-no-files-found: error
 
   release:
+    # GitHub intentionally restricts secrets in pull_request workflows from forks.
+    # Release signing is only attempted on trusted push/manual runs.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Check release signing secrets
-        id: signing
+      - name: Validate release signing secrets
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Release build skipped: configure all four signing secrets."
+          missing=0
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Add all four secrets in Settings > Secrets and variables > Actions."
+            exit 1
           fi
       - uses: actions/checkout@v4
-        if: steps.signing.outputs.enabled == 'true'
       - uses: actions/setup-java@v4
-        if: steps.signing.outputs.enabled == 'true'
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-        if: steps.signing.outputs.enabled == 'true'
-      - name: Restore release keystore
-        if: steps.signing.outputs.enabled == 'true'
+      - name: Restore and validate release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/neuro-ai-release.jks"
           test -s "$RUNNER_TEMP/neuro-ai-release.jks"
+          keytool -list -keystore "$RUNNER_TEMP/neuro-ai-release.jks" -storepass "$KEYSTORE_PASSWORD" >/dev/null
       - name: Build signed release APK and AAB
-        if: steps.signing.outputs.enabled == 'true'
         env:
           RELEASE_STORE_FILE: ${{ runner.temp }}/neuro-ai-release.jks
           RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -73,13 +77,11 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: gradle -p NEURO_AI/android :app:assembleRelease :app:bundleRelease
       - uses: actions/upload-artifact@v4
-        if: steps.signing.outputs.enabled == 'true'
         with:
           name: neuro-ai-release-apk
           path: NEURO_AI/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
-        if: steps.signing.outputs.enabled == 'true'
         with:
           name: neuro-ai-release-aab
           path: NEURO_AI/android/app/build/outputs/bundle/release/*.aab
