@@ -39,7 +39,6 @@ jobs:
           unityVersion: 6000.3.28f1
           targetPlatform: Android
           buildName: PROJECT_STRIKE
-          androidAppBundle: false
           customParameters: -nographics
 
       - name: Verify APK
