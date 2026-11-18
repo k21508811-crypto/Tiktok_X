@@ -1,11 +1,14 @@
 package com.tiktokx.app
 
 import android.content.Context
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -298,6 +301,29 @@ private fun MainScreen(
             dismissButton = { TextButton(onClick = { selectedVideo = null }) { Text("Отмена") } }
         )
     }
+    selectedVideo?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { selectedVideo = null },
+            title = { Text("Публикация видео") },
+            text = { OutlinedTextField(captionDraft, { captionDraft = it }, label = { Text("Описание") }, maxLines = 4) },
+            confirmButton = {
+                TextButton(enabled = !busy, onClick = {
+                    scope.launch {
+                        busy = true
+                        try {
+                            withContext(Dispatchers.IO) { Api.uploadVideo(context, base, token, uri, captionDraft) }
+                            selectedVideo = null
+                            captionDraft = ""
+                            loadFeed()
+                            status = "Видео опубликовано"
+                        } catch (e: Exception) { status = e.message ?: "Ошибка загрузки" }
+                        finally { busy = false }
+                    }
+                }) { Text(if (busy) "Загрузка..." else "Опубликовать", color = AppAccent) }
+            },
+            dismissButton = { TextButton(onClick = { selectedVideo = null }) { Text("Отмена") } }
+        )
+    }
 }
 
 private object Api {
@@ -376,5 +402,28 @@ private object Api {
         if (code !in 200..299 || !json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error", "Ошибка загрузки"))
     }
 
+    fun uploadVideo(context: Context, base: String, token: String, uri: Uri, caption: String) {
+        val boundary = "TikTokX-" + System.currentTimeMillis()
+        val c = URL(endpoint(base, "/upload-video")).openConnection() as HttpURLConnection
+        c.requestMethod = "POST"
+        c.connectTimeout = 20000
+        c.readTimeout = 120000
+        c.doOutput = true
+        c.setRequestProperty("Authorization", "Bearer " + token)
+        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary)
+        c.setChunkedStreamingMode(65536)
+        c.outputStream.use { out ->
+            out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"caption\"\r\n\r\n" + caption + "\r\n").toByteArray(Charsets.UTF_8))
+            val mime = context.contentResolver.getType(uri) ?: "video/mp4"
+            out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"video\"; filename=\"clip\"\r\nContent-Type: " + mime + "\r\n\r\n").toByteArray(Charsets.UTF_8))
+            context.contentResolver.openInputStream(uri)?.use { input -> input.copyTo(out, 65536) } ?: throw IllegalStateException("Не удалось прочитать видео")
+            out.write(("\r\n--" + boundary + "--\r\n").toByteArray(Charsets.UTF_8))
+        }
+        val code = c.responseCode
+        val raw = (if (code in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
+        c.disconnect()
+        val json = try { JSONObject(raw) } catch (_: Exception) { throw IllegalStateException("Сервер вернул HTTP " + code) }
+        if (code !in 200..299 || !json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error", "Ошибка загрузки"))
+    }
     fun like(base: String, token: String, id: Long) { request(base, "/videos/$id/like", "POST", JSONObject(), token) }
 }
