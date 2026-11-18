@@ -3,6 +3,8 @@
     <application
         android:allowBackup="false"
         android:label="NEURO AI"
+        android:icon="@drawable/neuro_icon"
+        android:roundIcon="@drawable/neuro_icon"
         android:hardwareAccelerated="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
