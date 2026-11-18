@@ -401,7 +401,7 @@ private fun MainScreen(
                             Column(Modifier.padding(14.dp)) {
                                 Text("TikTok X · DIGITAL ID", color = AppAccent, style = MaterialTheme.typography.labelLarge)
                                 Text(digitalId, color = Color.White, style = MaterialTheme.typography.titleMedium)
-                                Text("@\${currentUser?.username ?: ""}", color = Color.LightGray)
+                                Text("@" + (currentUser?.username ?: ""), color = Color.LightGray)
                             }
                         }
                     }
