@@ -1,121 +1,194 @@
 package ai.neuro.app
 
+import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
+import android.webkit.CookieManager
+import android.webkit.SslErrorHandler
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
-private val bg = Color(0xFF0B1020)
-private val panel = Color(0xFF151D32)
-private val accent = Color(0xFF7C6CFF)
-private val fg = Color(0xFFF4F5FA)
-private val muted = Color(0xFF9AA5BD)
-private data class Line(val role: String, val content: String)
-private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(90, TimeUnit.SECONDS).build()
+private val pageBg = Color(0xFF0B1020)
+private val pageAccent = Color(0xFF8878FF)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { NeuroScreen() }
-    }
-}
-
-private suspend fun sendChat(lines: List<Line>): String = withContext(Dispatchers.IO) {
-    val arr = JSONArray()
-    lines.forEach { arr.put(JSONObject().put("role", it.role).put("content", it.content)) }
-    val body = JSONObject().put("messages", arr).toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-    val url = BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/chat"
-    client.newCall(Request.Builder().url(url).post(body).build()).execute().use { res ->
-        val raw = res.body?.string().orEmpty()
-        if (!res.isSuccessful) {
-            val detail = runCatching { JSONObject(raw).optString("detail") }.getOrDefault("")
-            error(detail.ifBlank { "Server error: ${res.code}" })
-        }
-        JSONObject(raw).getString("reply")
+        setContent { NeuroChatGptScreen() }
     }
 }
 
 @Composable
-private fun NeuroScreen() {
-    val lines = remember { mutableStateListOf<Line>() }
-    var input by remember { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    var errorText by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    MaterialTheme(colorScheme = darkColorScheme(primary = accent, background = bg, surface = panel)) {
-        Column(Modifier.fillMaxSize().background(bg).padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = accent, shape = RoundedCornerShape(14.dp)) {
-                    Text("N", Modifier.padding(horizontal = 14.dp, vertical = 7.dp), color = Color.White, fontSize = 24.sp)
+private fun NeuroChatGptScreen() {
+    var webView by remember { mutableStateOf<WebView?>(null) }
+    var progress by remember { mutableIntStateOf(0) }
+    var pageError by remember { mutableStateOf<String?>(null) }
+
+    BackHandler(enabled = webView?.canGoBack() == true) {
+        webView?.goBack()
+    }
+
+    MaterialTheme(colorScheme = darkColorScheme(
+        primary = pageAccent,
+        background = pageBg,
+        surface = Color(0xFF151D32)
+    )) {
+        Column(
+            modifier = Modifier.fillMaxSize().background(pageBg)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF11182A))
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("NEURO AI", color = Color.White, fontSize = 19.sp)
+                    Text("На базе веб-версии ChatGPT", color = Color(0xFFABB4C8), fontSize = 11.sp)
                 }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("NEURO AI", color = fg, fontSize = 21.sp)
-                    Text("Ваш интеллектуальный помощник", color = muted, fontSize = 12.sp)
-                }
+                Button(onClick = {
+                    pageError = null
+                    webView?.reload()
+                }) { Text("Обновить") }
             }
-            Spacer(Modifier.height(18.dp))
-            if (lines.isEmpty()) {
-                Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center) {
-                    Text("С чего начнём?", color = fg, fontSize = 27.sp)
-                    Text("Задайте вопрос NEURO AI", color = muted)
-                }
-            } else {
-                LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(lines) { line ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = if (line.role == "user") Arrangement.End else Arrangement.Start) {
-                            Surface(color = if (line.role == "user") accent.copy(alpha = .22f) else panel,
-                                shape = RoundedCornerShape(18.dp), modifier = Modifier.widthIn(max = 320.dp)) {
-                                Text(line.content, Modifier.padding(14.dp), color = fg)
+
+            if (progress in 1..99) {
+                androidx.compose.material3.LinearProgressIndicator(
+                    progress = { progress / 100f },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = pageAccent
+                )
+            }
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { context ->
+                        WebView(context).apply {
+                            webView = this
+                            setBackgroundColor(android.graphics.Color.rgb(11, 16, 32))
+
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.databaseEnabled = true
+                            settings.loadsImagesAutomatically = true
+                            settings.javaScriptCanOpenWindowsAutomatically = false
+                            settings.setSupportMultipleWindows(false)
+                            settings.allowFileAccess = false
+                            settings.allowContentAccess = false
+                            settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+
+                            CookieManager.getInstance().setAcceptCookie(true)
+                            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+
+                            webChromeClient = object : WebChromeClient() {
+                                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                    progress = newProgress
+                                }
                             }
+
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                    pageError = null
+                                }
+
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    progress = 100
+                                }
+
+                                override fun shouldOverrideUrlLoading(
+                                    view: WebView?,
+                                    request: WebResourceRequest?
+                                ): Boolean {
+                                    val uri = request?.url ?: return false
+                                    return when (uri.scheme?.lowercase()) {
+                                        "http", "https" -> false
+                                        else -> {
+                                            runCatching {
+                                                context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                                            }
+                                            true
+                                        }
+                                    }
+                                }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    error: WebResourceError?
+                                ) {
+                                    if (request?.isForMainFrame == true) {
+                                        pageError = "Не удалось загрузить ChatGPT. Проверьте интернет и повторите попытку."
+                                    }
+                                }
+
+                                override fun onReceivedSslError(
+                                    view: WebView?,
+                                    handler: SslErrorHandler?,
+                                    error: android.net.http.SslError?
+                                ) {
+                                    handler?.cancel()
+                                    pageError = "Не удалось безопасно установить соединение."
+                                }
+                            }
+
+                            loadUrl("https://chatgpt.com/")
+                        }
+                    },
+                    update = { webView = it }
+                )
+
+                if (pageError != null) {
+                    Surface(
+                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        color = Color(0xFF202A40),
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(pageError.orEmpty(), color = Color.White)
+                            Spacer(Modifier.height(12.dp))
+                            Button(onClick = {
+                                pageError = null
+                                webView?.reload()
+                            }) { Text("Повторить") }
+                            Spacer(Modifier.height(6.dp))
+                            Button(onClick = {
+                                runCatching {
+                                    webView?.context?.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse("https://chatgpt.com/"))
+                                    )
+                                }
+                            }) { Text("Открыть в браузере") }
                         }
                     }
-                    if (busy) item { Text("NEURO AI печатает…", color = muted) }
                 }
             }
-            errorText?.let { Text(it, color = Color(0xFFFF8585), fontSize = 12.sp) }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(input, { input = it }, Modifier.weight(1f), enabled = !busy,
-                    placeholder = { Text("Напишите сообщение…", color = muted) }, maxLines = 4,
-                    shape = RoundedCornerShape(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Button(enabled = input.isNotBlank() && !busy, onClick = {
-                    val prompt = input.trim()
-                    input = ""
-                    errorText = null
-                    lines.add(Line("user", prompt))
-                    busy = true
-                    scope.launch {
-                        try { lines.add(Line("assistant", sendChat(lines.toList()))) }
-                        catch (e: Exception) { errorText = e.message ?: "Не удалось получить ответ." }
-                        finally { busy = false }
-                    }
-                }, contentPadding = PaddingValues(16.dp), shape = RoundedCornerShape(16.dp)) { Text("➤") }
-            }
-            Text("Проверяйте важную информацию: ответы ИИ могут содержать ошибки.",
-                color = muted, fontSize = 10.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 6.dp))
         }
     }
 }
