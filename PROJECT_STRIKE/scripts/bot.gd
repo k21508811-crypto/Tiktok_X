@@ -38,7 +38,7 @@ func _capsule(radius: float, height: float, color: Color, pos: Vector3, part_nam
 	mesh.height = height
 	return _add_mesh(mesh, pos, _material(color), parent, part_name)
 
-func _box(size: Vector3, color: Color, pos: Vector3, part_name: String, parent: Node3D = body_root) -> MeshInstance3D:
+func _box(size: Vector3, color: Color, pos: Vector3, part_name: String, parent: Node3D) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
 	mesh.size = size
 	return _add_mesh(mesh, pos, _material(color, 0.64, 0.12), parent, part_name)
