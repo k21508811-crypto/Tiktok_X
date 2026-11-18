@@ -23,7 +23,7 @@ func _material(color: Color, roughness: float = 0.78, metallic: float = 0.0) -> 
 	mat.metallic = metallic
 	return mat
 
-func _add_mesh(mesh: Mesh, pos: Vector3, mat: Material, parent: Node3D = body_root, part_name: String = "Part") -> MeshInstance3D:
+func _add_mesh(mesh: Mesh, pos: Vector3, mat: Material, parent: Node3D, part_name: String = "Part") -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = part_name
 	instance.mesh = mesh
@@ -32,7 +32,7 @@ func _add_mesh(mesh: Mesh, pos: Vector3, mat: Material, parent: Node3D = body_ro
 	parent.add_child(instance)
 	return instance
 
-func _capsule(radius: float, height: float, color: Color, pos: Vector3, part_name: String, parent: Node3D = body_root) -> MeshInstance3D:
+func _capsule(radius: float, height: float, color: Color, pos: Vector3, part_name: String, parent: Node3D) -> MeshInstance3D:
 	var mesh := CapsuleMesh.new()
 	mesh.radius = radius
 	mesh.height = height
@@ -57,8 +57,8 @@ func _build_character() -> void:
 	body_root.name = "CharacterModel"
 	add_child(body_root)
 	torso_material = _material(Color("#365b58"), 0.72, 0.08)
-	_capsule(0.31, 0.76, Color("#365b58"), Vector3(0, 1.12, 0), "ArmoredTorso")
-	_box(Vector3(0.54, 0.30, 0.34), Color("#273b3e"), Vector3(0, 0.78, 0), "PelvisArmor")
+	_capsule(0.31, 0.76, Color("#365b58"), Vector3(0, 1.12, 0), "ArmoredTorso", body_root)
+	_box(Vector3(0.54, 0.30, 0.34), Color("#273b3e"), Vector3(0, 0.78, 0), "PelvisArmor", body_root)
 	var head := SphereMesh.new()
 	head.radius = 0.205
 	head.height = 0.41
@@ -67,20 +67,20 @@ func _build_character() -> void:
 	helmet.radius = 0.235
 	helmet.height = 0.23
 	_add_mesh(helmet, Vector3(0, 1.91, 0), _material(Color("#293b3b"), 0.42, 0.2), body_root, "Helmet")
-	_box(Vector3(0.36, 0.09, 0.28), Color("#18282b"), Vector3(0, 1.78, -0.04), "FaceShield")
-	_box(Vector3(0.42, 0.34, 0.13), Color("#52736c"), Vector3(0, 1.20, -0.19), "ChestPlate")
-	_box(Vector3(0.18, 0.18, 0.08), Color("#b78c45"), Vector3(0, 1.20, -0.27), "ChestInsignia")
+	_box(Vector3(0.36, 0.09, 0.28), Color("#18282b"), Vector3(0, 1.78, -0.04), "FaceShield", body_root)
+	_box(Vector3(0.42, 0.34, 0.13), Color("#52736c"), Vector3(0, 1.20, -0.19), "ChestPlate", body_root)
+	_box(Vector3(0.18, 0.18, 0.08), Color("#b78c45"), Vector3(0, 1.20, -0.27), "ChestInsignia", body_root)
 	for side in [-1.0, 1.0]:
-		var arm := _capsule(0.115, 0.68, Color("#314d4a"), Vector3(side * 0.43, 1.14, 0), "Arm")
+		var arm := _capsule(0.115, 0.68, Color("#314d4a"), Vector3(side * 0.43, 1.14, 0), "Arm", body_root)
 		arm.rotation.z = side * -0.12
-		_capsule(0.13, 0.28, Color("#273a3a"), Vector3(side * 0.47, 0.83, -0.01), "Glove")
-		_capsule(0.145, 0.82, Color("#263a3b"), Vector3(side * 0.17, 0.39, 0.015), "Leg")
-		_box(Vector3(0.29, 0.16, 0.43), Color("#1d292b"), Vector3(side * 0.17, 0.10, -0.055), "Boot")
-		_box(Vector3(0.20, 0.23, 0.30), Color("#293f40"), Vector3(side * 0.34, 1.43, 0), "ShoulderPad")
-	var rifle := _box(Vector3(0.11, 0.11, 0.62), Color("#171c20"), Vector3(0.16, 1.10, -0.40), "TrainingRifle")
+		_capsule(0.13, 0.28, Color("#273a3a"), Vector3(side * 0.47, 0.83, -0.01), "Glove", body_root)
+		_capsule(0.145, 0.82, Color("#263a3b"), Vector3(side * 0.17, 0.39, 0.015), "Leg", body_root)
+		_box(Vector3(0.29, 0.16, 0.43), Color("#1d292b"), Vector3(side * 0.17, 0.10, -0.055), "Boot", body_root)
+		_box(Vector3(0.20, 0.23, 0.30), Color("#293f40"), Vector3(side * 0.34, 1.43, 0), "ShoulderPad", body_root)
+	var rifle := _box(Vector3(0.11, 0.11, 0.62), Color("#171c20"), Vector3(0.16, 1.10, -0.40), "TrainingRifle", body_root)
 	rifle.rotation.x = -0.08
-	_box(Vector3(0.15, 0.13, 0.22), Color("#59615e"), Vector3(0.16, 1.16, -0.22), "RifleReceiver")
-	_box(Vector3(0.32, 0.12, 0.20), Color("#243535"), Vector3(0, 1.43, 0.13), "Backpack")
+	_box(Vector3(0.15, 0.13, 0.22), Color("#59615e"), Vector3(0.16, 1.16, -0.22), "RifleReceiver", body_root)
+	_box(Vector3(0.32, 0.12, 0.20), Color("#243535"), Vector3(0, 1.43, 0.13), "Backpack", body_root)
 
 func _physics_process(delta: float) -> void:
 	if health <= 0:
