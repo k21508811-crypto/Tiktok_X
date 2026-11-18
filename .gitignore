@@ -1,0 +1,6 @@
+# Private deployment settings
+/backend/config.php
+/backend/.env
+/backend/storage/
+/backend/uploads/
+/.DS_Store
