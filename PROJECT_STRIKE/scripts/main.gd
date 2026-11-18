@@ -86,7 +86,7 @@ func _build_arena() -> void:
 func _spawn_player() -> void:
 	player = CharacterBody3D.new()
 	player.set_script(PLAYER_SCENE_SCRIPT)
-	player.position = Vector3(0, 1.2, 15)
+	player.position = Vector3(0, 0.0, 15)
 	player.name = "Player"
 	add_child(player)
 
@@ -95,7 +95,7 @@ func _spawn_bots() -> void:
 		var bot := CharacterBody3D.new()
 		bot.set_script(BOT_SCENE_SCRIPT)
 		var angle := TAU * float(i) / float(BOT_COUNT)
-		bot.position = Vector3(cos(angle) * 13.0, 1, -cos(angle * 0.7) * 12.0)
+		bot.position = Vector3(cos(angle) * 13.0, 0.0, -cos(angle * 0.7) * 12.0)
 		bot.name = "TrainingBot_%d" % i
 		bot.add_to_group("enemy_bots")
 		add_child(bot)
