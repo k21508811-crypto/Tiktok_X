@@ -68,6 +68,28 @@ jobs:
           unzip -oq /tmp/godot-templates.tpz -d /tmp/godot-templates
           cp -a /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
 
+      - name: Configure Godot Android editor paths
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
+          EOF
+          test -x "$JAVA_HOME/bin/java"
+          test -x "$JAVA_HOME/bin/keytool"
+          test -x "$ANDROID_SDK_ROOT/platform-tools/adb"
+          test -d "$ANDROID_SDK_ROOT/platforms/android-34"
+          test -d "$ANDROID_SDK_ROOT/build-tools/34.0.0"
+          test -d "$ANDROID_SDK_ROOT/cmake/3.10.2.4988404"
+          test -d "$ANDROID_SDK_ROOT/ndk/23.2.8568313"
+          test -s "$RUNNER_TEMP/debug.keystore"
+          echo "Java: $JAVA_HOME"
+          echo "Android SDK: $ANDROID_SDK_ROOT"
+          echo "Godot editor settings configured."
+
       - name: Import and validate project
         run: godot --headless --editor --path PROJECT_STRIKE --quit
 
@@ -78,7 +100,7 @@ jobs:
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p PROJECT_STRIKE/build
-          godot --headless --path PROJECT_STRIKE --export-debug "Android" PROJECT_STRIKE/build/PROJECT_STRIKE-debug.apk
+          godot --headless --verbose --path PROJECT_STRIKE --export-debug "Android" PROJECT_STRIKE/build/PROJECT_STRIKE-debug.apk
 
       - name: Verify APK output
         run: |
