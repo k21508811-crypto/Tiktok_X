@@ -216,11 +216,6 @@ public sealed class ProjectStrikeBootstrap : MonoBehaviour
         ShowMessage("YOU WERE ELIMINATED", 1.5f);
     }
 
-    public void BotEliminated(StrikeBot bot)
-    {
-        if (bot != null && bot.Team == "red" && bot.KillerWasPlayer) Kills++;
-    }
-
     private void EndRound(bool blueWon, string reason)
     {
         if (RoundTransition || MatchFinished) return;
@@ -301,7 +296,7 @@ public sealed class ProjectStrikeBootstrap : MonoBehaviour
         if (Application.isMobilePlatform && Player != null && Player.IsAlive)
         {
             float fireSize = 128f * scale;
-            Rect fireRect = new Rect(Screen.width - fireSize - 24f * scale, Screen.height - fireSize - 26f * scale, fireSize, fireSize);
+            Rect fireRect = new Rect(Screen.width - fireSize - 24f * scale, Screen.height - fireSize - 150f * scale, fireSize, fireSize);
             Rect reloadRect = new Rect(Screen.width - 270f * scale, Screen.height - 94f * scale, 112f * scale, 64f * scale);
             Rect jumpRect = new Rect(Screen.width - 142f * scale, Screen.height - 94f * scale, 112f * scale, 64f * scale);
             GUI.Box(fireRect, "FIRE", buttonStyle);
@@ -465,13 +460,13 @@ public sealed class StrikePlayer : MonoBehaviour
                 {
                     lookFinger = touch.fingerId;
                 }
-                else if (pos.x > Screen.width * 0.82f && pos.y > Screen.height * 0.28f)
+                else if (pos.x > Screen.width * 0.82f && pos.y > Screen.height * 0.18f && pos.y < Screen.height * 0.38f)
                 {
                     fireFinger = touch.fingerId;
                 }
-                else if (pos.x > Screen.width * 0.62f && pos.y < Screen.height * 0.24f)
+                else if (pos.x > Screen.width * 0.60f && pos.x < Screen.width * 0.80f && pos.y < Screen.height * 0.24f)
                     reloadQueued = true;
-                else if (pos.x > Screen.width * 0.84f && pos.y < Screen.height * 0.24f)
+                else if (pos.x >= Screen.width * 0.80f && pos.y < Screen.height * 0.24f)
                     jumpQueued = true;
             }
 
@@ -680,7 +675,6 @@ public sealed class StrikeBot : MonoBehaviour
         IsAlive = false;
         KillerWasPlayer = byPlayer;
         if (byPlayer) ProjectStrikeBootstrap.Instance.RegisterPlayerKill();
-        ProjectStrikeBootstrap.Instance.BotEliminated(this);
         Destroy(gameObject);
     }
 }
