@@ -12,7 +12,7 @@ function token():?string{$h=$_SERVER['HTTP_AUTHORIZATION']??'';return preg_match
 function user():?array{$t=token();if(!$t)return null;$q=db()->prepare("SELECT u.id,u.username,u.email,p.display_name,p.bio,p.avatar_path,p.is_verified FROM user_tokens t JOIN users u ON u.id=t.user_id LEFT JOIN profiles p ON p.user_id=u.id WHERE t.token_hash=? AND t.expires_at>UTC_TIMESTAMP() AND u.status='active' LIMIT 1");$q->execute([hash('sha256',$t)]);return $q->fetch()?:null;}
 function auth():array{$u=user();if(!$u)out(['ok'=>false,'error'=>'Authentication required'],401);return $u;}
 function issue(int $id):string{$t=bin2hex(random_bytes(32));db()->prepare("INSERT INTO user_tokens(user_id,token_hash,expires_at) VALUES(?,?,DATE_ADD(UTC_TIMESTAMP(),INTERVAL 30 DAY))")->execute([$id,hash('sha256',$t)]);return $t;}
-$m=$_SERVER['REQUEST_METHOD']??'GET';$path=trim(parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH),'/');$b=body();
+$m=$_SERVER['REQUEST_METHOD']??'GET';$rawPath=trim(parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH),'/');$apiPos=strpos($rawPath,'api/');$path=$apiPos===false?$rawPath:substr($rawPath,$apiPos);$b=body();
 try{
 if($m==='GET'&&$path==='api/health'){db()->query('SELECT 1');out(['ok'=>true,'service'=>'TikTok X API']);}
 if($m==='POST'&&$path==='api/register'){
@@ -40,7 +40,7 @@ if($m==='POST'&&$path==='api/upload-video'){
  $mime=(new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']);$allowed=['video/mp4'=>'mp4','video/quicktime'=>'mov','video/webm'=>'webm','video/3gpp'=>'3gp','video/x-matroska'=>'mkv'];if(!isset($allowed[$mime]))out(['ok'=>false,'error'=>'Unsupported video format'],415);
  $dir=__DIR__.'/uploads';if(!is_dir($dir)&&!mkdir($dir,0755,true))out(['ok'=>false,'error'=>'Cannot create upload directory'],500);
  $name=bin2hex(random_bytes(18)).'.'.$allowed[$mime];if(!move_uploaded_file($f['tmp_name'],$dir.'/'.$name))out(['ok'=>false,'error'=>'Cannot save uploaded video'],500);
- $prefix=rtrim(str_replace('/api.php','',$_SERVER['SCRIPT_NAME']??''),'/');$host=($_SERVER['HTTPS']??'')==='on'?'https://':'http://';$url=$host.($_SERVER['HTTP_HOST']??'localhost').$prefix.'/uploads/'.$name;
+ $prefix=rtrim(str_replace('/api.php','',$_SERVER['SCRIPT_NAME']??''),'/');$host=(($_SERVER['HTTPS']??'')==='on'||($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https')?'https://':'http://';$url=$host.($_SERVER['HTTP_HOST']??'localhost').$prefix.'/uploads/'.$name;
  $caption=mb_substr(trim((string)($_POST['caption']??'')),0,500);$q=db()->prepare("INSERT INTO videos(user_id,caption,video_path,status) VALUES(?,?,?,'published')");$q->execute([$u['id'],$caption,$url]);out(['ok'=>true,'video_id'=>(int)db()->lastInsertId(),'video_url'=>$url],201);
 }
 if($m==='GET'&&$path==='api/admin/overview'){ $u=auth();$q=db()->prepare("SELECT role_name FROM admin_roles WHERE user_id=?");$q->execute([$u['id']]);if(!$q->fetchColumn())out(['ok'=>false,'error'=>'Admin access required'],403);$reports=db()->query("SELECT * FROM reports WHERE status='pending' ORDER BY created_at DESC LIMIT 100")->fetchAll();$ver=db()->query("SELECT vr.*,u.username FROM verification_requests vr JOIN users u ON u.id=vr.user_id WHERE vr.status='pending' ORDER BY vr.created_at ASC LIMIT 100")->fetchAll();$videos=db()->query("SELECT v.id,v.caption,v.video_path,u.username FROM videos v JOIN users u ON u.id=v.user_id WHERE v.status='published' ORDER BY v.created_at DESC LIMIT 100")->fetchAll();out(['ok'=>true,'reports'=>$reports,'verification_requests'=>$ver,'videos'=>$videos]);}
