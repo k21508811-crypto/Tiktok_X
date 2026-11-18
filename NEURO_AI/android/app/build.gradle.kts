@@ -15,10 +15,22 @@ android {
         versionName = "0.2.0"
     }
 
-    // Release is intentionally unsigned. No keystore or signing secrets are required.
+    signingConfigs {
+        create("release") {
+            val releaseStore = System.getenv("RELEASE_STORE_FILE")
+            if (!releaseStore.isNullOrBlank()) {
+                storeFile = file(releaseStore)
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
