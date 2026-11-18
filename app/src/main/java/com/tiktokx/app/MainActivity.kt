@@ -183,6 +183,9 @@ private fun MainScreen(
     var commentVideo by remember { mutableStateOf<AppVideo?>(null) }
     var commentItems by remember { mutableStateOf<List<AppComment>>(emptyList()) }
     var commentDraft by remember { mutableStateOf("") }
+    var displayNameDraft by remember { mutableStateOf(initialUser?.displayName ?: "") }
+    var bioDraft by remember { mutableStateOf(initialUser?.bio ?: "") }
+    var verificationReason by remember { mutableStateOf("") }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { selectedVideo = it }
 
     fun loadFeed() {
@@ -200,6 +203,8 @@ private fun MainScreen(
         try {
             val me = withContext(Dispatchers.IO) { Api.me(base, token) }
             currentUser = me
+            displayNameDraft = me.displayName
+            bioDraft = me.bio
             onUserLoaded(me)
         } catch (_: Exception) { }
         loadFeed()
@@ -269,7 +274,18 @@ private fun MainScreen(
                         }
                     }, colors = ButtonDefaults.buttonColors(containerColor = AppAccent), modifier = Modifier.padding(top = 8.dp)) { Text("Найти") }
                     LazyColumn {
-                        items(users) { found -> Text("@${found.username}  ${found.displayName}", color = Color.White, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) }
+                        items(users) { found ->
+                            Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column { Text("@${found.username}", color = Color.White); Text(found.displayName, color = Color.Gray) }
+                                Button(onClick = {
+                                    scope.launch {
+                                        try { withContext(Dispatchers.IO) { Api.follow(base, token, found.id) }; status = "Подписка обновлена" }
+                                        catch (e: Exception) { status = e.message ?: "Ошибка подписки" }
+                                    }
+                                }, colors = ButtonDefaults.buttonColors(containerColor = AppAccent)) { Text("Подписаться") }
+                            }
+                            HorizontalDivider(color = Color.DarkGray)
+                        }
                     }
                     if (status.isNotBlank()) Text(status, color = Color.LightGray)
                 }
@@ -279,7 +295,28 @@ private fun MainScreen(
                     Text(currentUser?.email ?: "", color = Color.Gray)
                     Text(currentUser?.bio ?: "", color = Color.LightGray, modifier = Modifier.padding(top = 12.dp))
                     if (currentUser?.verified == true) Text("Подтверждённый аккаунт", color = Color(0xFF25F4EE))
-                    Text("Аккаунт загружается с сервера. Профиль не подменяется тестовыми данными.", color = Color.Gray, modifier = Modifier.padding(top = 18.dp))
+                    OutlinedTextField(displayNameDraft, { displayNameDraft = it }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), label = { Text("Отображаемое имя") }, singleLine = true)
+                    OutlinedTextField(bioDraft, { bioDraft = it }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), label = { Text("О себе") }, maxLines = 3)
+                    Button(onClick = {
+                        scope.launch {
+                            try {
+                                withContext(Dispatchers.IO) { Api.updateProfile(base, token, displayNameDraft, bioDraft) }
+                                currentUser = withContext(Dispatchers.IO) { Api.me(base, token) }
+                                status = "Профиль сохранён"
+                            } catch (e: Exception) { status = e.message ?: "Ошибка сохранения профиля" }
+                        }
+                    }, modifier = Modifier.padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppAccent)) { Text("Сохранить профиль") }
+                    OutlinedTextField(verificationReason, { verificationReason = it }, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), label = { Text("Причина запроса галочки") }, maxLines = 3)
+                    OutlinedButton(onClick = {
+                        scope.launch {
+                            try {
+                                withContext(Dispatchers.IO) { Api.requestVerification(base, token, verificationReason) }
+                                verificationReason = ""
+                                status = "Заявка на верификацию отправлена"
+                            } catch (e: Exception) { status = e.message ?: "Ошибка заявки" }
+                        }
+                    }, modifier = Modifier.padding(top = 8.dp)) { Text("Запросить верификацию") }
+                    if (status.isNotBlank()) Text(status, color = Color.LightGray, modifier = Modifier.padding(top = 10.dp))
                 }
             }
         }
@@ -418,5 +455,8 @@ private object Api {
         val json = try { JSONObject(raw) } catch (_: Exception) { throw IllegalStateException("Сервер вернул HTTP " + code) }
         if (code !in 200..299 || !json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error", "Ошибка загрузки"))
     }
+    fun follow(base: String, token: String, id: Long) { request(base, "/users/" + id + "/follow", "POST", JSONObject(), token) }
+    fun updateProfile(base: String, token: String, displayName: String, bio: String) { request(base, "/profile", "PUT", JSONObject().put("display_name", displayName).put("bio", bio), token) }
+    fun requestVerification(base: String, token: String, reason: String) { require(reason.trim().length >= 20) { "Опиши причину минимум в 20 символах" }; request(base, "/verification", "POST", JSONObject().put("reason", reason), token) }
     fun like(base: String, token: String, id: Long) { request(base, "/videos/$id/like", "POST", JSONObject(), token) }
 }
