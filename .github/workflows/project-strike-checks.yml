@@ -1,0 +1,40 @@
+name: PROJECT STRIKE checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "PROJECT_STRIKE/**"
+      - ".github/workflows/project-strike-checks.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "PROJECT_STRIKE/**"
+      - ".github/workflows/project-strike-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  godot-check:
+    name: Godot 4 project validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Godot 4
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.4.1
+          use-dotnet: false
+
+      - name: Verify Godot version
+        run: godot --version
+
+      - name: Import and parse project
+        run: godot --headless --editor --path PROJECT_STRIKE --quit
+
+      - name: Headless startup smoke test
+        run: godot --headless --path PROJECT_STRIKE --quit-after 120
