@@ -5,7 +5,7 @@ header('X-Content-Type-Options: nosniff');
 $configFile=dirname(__DIR__).'/config.php';
 if(!is_file($configFile)){http_response_code(503);echo json_encode(['ok'=>false,'error'=>'Server is not configured']);exit;}
 $config=require $configFile;
-function out(array $d,int $s=200):never{http_response_code($s);echo json_encode($d,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}
+function out(array $d,int $s=200):void{http_response_code($s);echo json_encode($d,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;}
 function db():PDO{static $p;global $config;if($p)return $p;$p=new PDO("mysql:host={$config['db_host']};port={$config['db_port']};dbname={$config['db_name']};charset=utf8mb4",$config['db_user'],$config['db_pass'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);return $p;}
 function body():array{$x=json_decode(file_get_contents('php://input')?:'{}',true);return is_array($x)?$x:[];}
 function token():?string{$h=$_SERVER['HTTP_AUTHORIZATION']??'';return preg_match('/Bearer\s+([A-Za-z0-9]+)$/i',$h,$m)?$m[1]:null;}
@@ -47,6 +47,7 @@ if($m==='GET'&&$path==='api/admin/overview'){ $u=auth();$q=db()->prepare("SELECT
 if($m==='POST'&&preg_match('#^api/admin/videos/(\\d+)/status$#',$path,$x)){ $u=auth();$q=db()->prepare('SELECT role_name FROM admin_roles WHERE user_id=?');$q->execute([$u['id']]);if(!$q->fetchColumn())out(['ok'=>false,'error'=>'Admin access required'],403);$status=(string)($b['status']??'');if(!in_array($status,['published','hidden','removed'],true))out(['ok'=>false,'error'=>'Invalid status'],422);db()->prepare('UPDATE videos SET status=? WHERE id=?')->execute([$status,(int)$x[1]]);out(['ok'=>true]);}
 if($m==='POST'&&preg_match('#^api/admin/verification/(\\d+)$#',$path,$x)){ $u=auth();$q=db()->prepare('SELECT role_name FROM admin_roles WHERE user_id=?');$q->execute([$u['id']]);if(!$q->fetchColumn())out(['ok'=>false,'error'=>'Admin access required'],403);$status=(string)($b['status']??'');if(!in_array($status,['approved','rejected'],true))out(['ok'=>false,'error'=>'Invalid status'],422);db()->prepare('UPDATE verification_requests SET status=?,moderator_note=?,reviewed_at=UTC_TIMESTAMP() WHERE id=?')->execute([$status,mb_substr((string)($b['note']??''),0,500),(int)$x[1]]);if($status==='approved'){$q=db()->prepare('SELECT user_id FROM verification_requests WHERE id=?');$q->execute([(int)$x[1]]);$id=$q->fetchColumn();if($id)db()->prepare('UPDATE profiles SET is_verified=1 WHERE user_id=?')->execute([$id]);}out(['ok'=>true]);}
 
+if($m==='POST'&&preg_match('#^api/admin/reports/(\\d+)$#',$path,$x)){ $u=auth();$q=db()->prepare('SELECT role_name FROM admin_roles WHERE user_id=?');$q->execute([$u['id']]);if(!$q->fetchColumn())out(['ok'=>false,'error'=>'Admin access required'],403);$status=(string)($b['status']??'');if(!in_array($status,['reviewed','dismissed'],true))out(['ok'=>false,'error'=>'Invalid status'],422);db()->prepare('UPDATE reports SET status=? WHERE id=?')->execute([$status,(int)$x[1]]);out(['ok'=>true]);}
 if($m==='POST'&&$path==='api/logout'){if($t=token())db()->prepare('DELETE FROM user_tokens WHERE token_hash=?')->execute([hash('sha256',$t)]);out(['ok'=>true]);}
 out(['ok'=>false,'error'=>'Not found'],404);
 }catch(Throwable $e){error_log($e->getMessage());out(['ok'=>false,'error'=>'Internal server error'],500);}
