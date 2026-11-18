@@ -13,6 +13,7 @@ var ammo := MAGAZINE_SIZE
 var reserve_ammo := 90
 var reloading := false
 var is_dead := false
+var team_id := "blue"
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var camera: Camera3D
 var collision_shape: CollisionShape3D
@@ -169,7 +170,24 @@ func _die() -> void:
 	if root.has_method("player_died"):
 		root.player_died()
 	await get_tree().create_timer(RESPAWN_TIME).timeout
-	global_position = Vector3(0, 0.0, 15)
+	global_position = Vector3(-20, 0.0, 0)
+	health = 100
+	armor = 100
+	ammo = MAGAZINE_SIZE
+	reserve_ammo = 90
+	reloading = false
+	is_dead = false
+	if is_instance_valid(weapon_root):
+		weapon_root.visible = true
+	if is_instance_valid(collision_shape):
+		collision_shape.set_deferred("disabled", false)
+	set_physics_process(true)
+	set_process_unhandled_input(true)
+	_update_hud()
+
+func reset_for_round(spawn_position: Vector3) -> void:
+	global_position = spawn_position
+	velocity = Vector3.ZERO
 	health = 100
 	armor = 100
 	ammo = MAGAZINE_SIZE

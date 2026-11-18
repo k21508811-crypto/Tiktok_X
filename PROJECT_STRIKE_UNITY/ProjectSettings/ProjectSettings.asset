@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 27
+  productGUID: 6f5e4d3c2b1a09876543210fedcba987
+  productName: PROJECT STRIKE
+  defaultScreenOrientation: 3
+  targetDevice: 2
+  useOnDemandResources: 0
+  accelerometerFrequency: 60
+  companyName: Project Strike Studio
+  bundleVersion: 0.2.0
+  AndroidBundleVersionCode: 2
+  AndroidMinSdkVersion: 24
+  AndroidTargetSdkVersion: 35
+  AndroidTargetArchitectures: 2
+  AndroidPreferredInstallLocation: 0
+  scriptingBackend:
+    Android: 1
+  il2cppCompilerConfiguration:
+    Android: 0
+  apiCompatibilityLevelPerPlatform:
+    Android: 6
+  activeInputHandler: 0
+  applicationIdentifier:
+    Android: org.projectstrike.unity
+  defaultIsNativeResolution: 1
+  resizableWindow: 0
+  runInBackground: 1
+  usePlayerLog: 0
+  use32BitDisplayBuffer: 0
+  colorSpace: 0
+  m_ActiveColorSpace: 0
+  graphicsJobs: 0
+  androidStartInFullscreen: 1
+  AndroidEnableArmv9SecurityFeatures: 0
+  AndroidCreateSymbols: 0
+  AndroidMinifyRelease: 0
+  AndroidMinifyDebug: 0
