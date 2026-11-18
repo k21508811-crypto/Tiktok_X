@@ -1,0 +1,56 @@
+name: PROJECT STRIKE Unity Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [unity-migration]
+    paths:
+      - "PROJECT_STRIKE_UNITY/**"
+      - ".github/workflows/project-strike-unity-android.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Build Unity Android ARM64 APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Check Unity license secret
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          if [ -z "$UNITY_LICENSE" ]; then
+            echo "::error::UNITY_LICENSE is missing. Run the Unity license activation workflow, convert the .alf file to .ulf, then add the .ulf contents as the UNITY_LICENSE repository Actions secret."
+            exit 1
+          fi
+
+      - name: Build Android APK with Unity 6.3 LTS
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          projectPath: PROJECT_STRIKE_UNITY
+          unityVersion: 6000.3.28f1
+          targetPlatform: Android
+          buildName: PROJECT_STRIKE
+          androidAppBundle: false
+          customParameters: -nographics
+
+      - name: Verify APK
+        run: |
+          find build -type f -name "*.apk" -print -quit | grep -q .
+          find build -type f -name "*.apk" -exec ls -lh {} \;
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PROJECT-STRIKE-Unity-Android-APK
+          path: build/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
