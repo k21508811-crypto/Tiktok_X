@@ -43,6 +43,48 @@ if($m==='POST'&&$path==='api/upload-video'){
  $prefix=rtrim(str_replace('/api.php','',$_SERVER['SCRIPT_NAME']??''),'/');$host=(($_SERVER['HTTPS']??'')==='on'||($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https')?'https://':'http://';$url=$host.($_SERVER['HTTP_HOST']??'localhost').$prefix.'/uploads/'.$name;
  $caption=mb_substr(trim((string)($_POST['caption']??'')),0,500);$q=db()->prepare("INSERT INTO videos(user_id,caption,video_path,status) VALUES(?,?,?,'published')");$q->execute([$u['id'],$caption,$url]);out(['ok'=>true,'video_id'=>(int)db()->lastInsertId(),'video_url'=>$url],201);
 }
+
+if($m==='POST'&&$path==='api/upload-avatar'){
+ $u=auth();if(!isset($_FILES['avatar'])||$_FILES['avatar']['error']!==UPLOAD_ERR_OK)out(['ok'=>false,'error'=>'Avatar upload failed'],400);
+ $f=$_FILES['avatar'];if($f['size']>5*1024*1024)out(['ok'=>false,'error'=>'Avatar limit is 5 MB'],413);
+ $mime=(new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']);$allowed=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];if(!isset($allowed[$mime]))out(['ok'=>false,'error'=>'Use JPG, PNG or WebP'],415);
+ $dir=__DIR__.'/uploads/avatars';if(!is_dir($dir)&&!mkdir($dir,0755,true))out(['ok'=>false,'error'=>'Cannot create avatar directory'],500);
+ $name=bin2hex(random_bytes(18)).'.'.$allowed[$mime];if(!move_uploaded_file($f['tmp_name'],$dir.'/'.$name))out(['ok'=>false,'error'=>'Cannot save avatar'],500);
+ $prefix=rtrim(str_replace('/api.php','',$_SERVER['SCRIPT_NAME']??''),'/');$scheme=(($_SERVER['HTTPS']??'')==='on'||($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https')?'https://':'http://';$url=$scheme.($_SERVER['HTTP_HOST']??'localhost').$prefix.'/uploads/avatars/'.$name;
+ db()->prepare('UPDATE profiles SET avatar_path=? WHERE user_id=?')->execute([$url,$u['id']]);out(['ok'=>true,'avatar_url'=>$url]);
+}
+if($m==='GET'&&$path==='api/music'){auth();$q=db()->query("SELECT m.id,m.title,m.file_path,m.duration_seconds,u.username FROM music m JOIN users u ON u.id=m.user_id WHERE m.status='published' ORDER BY m.created_at DESC LIMIT 100");out(['ok'=>true,'music'=>$q->fetchAll()]);}
+if($m==='POST'&&$path==='api/upload-music'){
+ $u=auth();$title=mb_substr(trim((string)($_POST['title']??'')),0,120);if($title==='')out(['ok'=>false,'error'=>'Music title is required'],422);
+ if(!isset($_FILES['audio'])||$_FILES['audio']['error']!==UPLOAD_ERR_OK)out(['ok'=>false,'error'=>'Audio upload failed'],400);
+ $f=$_FILES['audio'];if($f['size']>20*1024*1024)out(['ok'=>false,'error'=>'Audio limit is 20 MB'],413);
+ $mime=(new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']);$allowed=['audio/mpeg'=>'mp3','audio/mp3'=>'mp3','audio/mp4'=>'m4a','audio/x-m4a'=>'m4a','audio/wav'=>'wav','audio/x-wav'=>'wav','audio/ogg'=>'ogg','audio/aac'=>'aac'];if(!isset($allowed[$mime]))out(['ok'=>false,'error'=>'Unsupported audio format'],415);
+ $dir=__DIR__.'/uploads/music';if(!is_dir($dir)&&!mkdir($dir,0755,true))out(['ok'=>false,'error'=>'Cannot create music directory'],500);
+ $name=bin2hex(random_bytes(18)).'.'.$allowed[$mime];if(!move_uploaded_file($f['tmp_name'],$dir.'/'.$name))out(['ok'=>false,'error'=>'Cannot save audio'],500);
+ $prefix=rtrim(str_replace('/api.php','',$_SERVER['SCRIPT_NAME']??''),'/');$scheme=(($_SERVER['HTTPS']??'')==='on'||($_SERVER['HTTP_X_FORWARDED_PROTO']??'')==='https')?'https://':'http://';$url=$scheme.($_SERVER['HTTP_HOST']??'localhost').$prefix.'/uploads/music/'.$name;
+ db()->prepare("INSERT INTO music(user_id,title,file_path,status) VALUES(?,?,?,'published')")->execute([$u['id'],$title,$url]);out(['ok'=>true,'music_id'=>(int)db()->lastInsertId(),'music_url'=>$url],201);
+}
+if($m==='GET'&&$path==='api/digital-id'){
+ $u=auth();$q=db()->prepare('SELECT public_id,display_public,created_at FROM digital_ids WHERE user_id=?');$q->execute([$u['id']]);$d=$q->fetch();
+ if(!$d){$id=sprintf('%08x-%04x-4%03x-%04x-%012x',random_int(0,0xffffffff),random_int(0,0xffff),random_int(0,0xfff),random_int(0,0x3fff)|0x8000,random_int(0,0xffffffffffff));db()->prepare('INSERT INTO digital_ids(user_id,public_id) VALUES(?,?)')->execute([$u['id'],$id]);$q->execute([$u['id']]);$d=$q->fetch();}
+ out(['ok'=>true,'digital_id'=>$d['public_id'],'display_public'=>(int)$d['display_public']===1,'username'=>$u['username'],'display_name'=>$u['display_name'],'is_verified'=>(int)$u['is_verified']===1,'created_at'=>$d['created_at']]);
+}
+if($m==='PUT'&&$path==='api/digital-id'){
+ $u=auth();$visible=!empty($b['display_public'])?1:0;db()->prepare('UPDATE digital_ids SET display_public=? WHERE user_id=?')->execute([$visible,$u['id']]);out(['ok'=>true]);
+}
+if($m==='GET'&&$path==='api/business-profile'){
+ $u=auth();$q=db()->prepare('SELECT business_name,category,website,contact_email,description,is_active FROM business_profiles WHERE user_id=?');$q->execute([$u['id']]);out(['ok'=>true,'business'=>$q->fetch()?:null]);
+}
+if($m==='PUT'&&$path==='api/business-profile'){
+ $u=auth();$name=mb_substr(trim((string)($b['business_name']??'')),0,120);if($name==='')out(['ok'=>false,'error'=>'Business name is required'],422);
+ $category=mb_substr(trim((string)($b['category']??'')),0,80);$website=trim((string)($b['website']??''));$email=trim((string)($b['contact_email']??''));$desc=mb_substr(trim((string)($b['description']??'')),0,1000);
+ if($website!==''&&!filter_var($website,FILTER_VALIDATE_URL))out(['ok'=>false,'error'=>'Invalid website URL'],422);if($email!==''&&!filter_var($email,FILTER_VALIDATE_EMAIL))out(['ok'=>false,'error'=>'Invalid contact email'],422);
+ db()->prepare('INSERT INTO business_profiles(user_id,business_name,category,website,contact_email,description) VALUES(?,?,?,?,?,?) ON DUPLICATE KEY UPDATE business_name=VALUES(business_name),category=VALUES(category),website=VALUES(website),contact_email=VALUES(contact_email),description=VALUES(description),is_active=1')->execute([$u['id'],$name,$category,$website,$email,$desc]);out(['ok'=>true]);
+}
+if($m==='POST'&&preg_match('#^api/videos/(\d+)/view$#',$path,$x)){
+ auth();$id=(int)$x[1];$q=db()->prepare("UPDATE videos SET views_count=views_count+1 WHERE id=? AND status='published' AND visibility='public'");$q->execute([$id]);if(!$q->rowCount())out(['ok'=>false,'error'=>'Video not found'],404);out(['ok'=>true]);
+}
+
 if($m==='GET'&&$path==='api/admin/overview'){ $u=auth();$q=db()->prepare("SELECT role_name FROM admin_roles WHERE user_id=?");$q->execute([$u['id']]);if(!$q->fetchColumn())out(['ok'=>false,'error'=>'Admin access required'],403);$reports=db()->query("SELECT * FROM reports WHERE status='pending' ORDER BY created_at DESC LIMIT 100")->fetchAll();$ver=db()->query("SELECT vr.*,u.username FROM verification_requests vr JOIN users u ON u.id=vr.user_id WHERE vr.status='pending' ORDER BY vr.created_at ASC LIMIT 100")->fetchAll();$videos=db()->query("SELECT v.id,v.caption,v.video_path,u.username FROM videos v JOIN users u ON u.id=v.user_id WHERE v.status='published' ORDER BY v.created_at DESC LIMIT 100")->fetchAll();out(['ok'=>true,'reports'=>$reports,'verification_requests'=>$ver,'videos'=>$videos]);}
 if($m==='POST'&&preg_match('#^api/admin/videos/(\\d+)/status$#',$path,$x)){ $u=auth();$q=db()->prepare('SELECT role_name FROM admin_roles WHERE user_id=?');$q->execute([$u['id']]);if(!$q->fetchColumn())out(['ok'=>false,'error'=>'Admin access required'],403);$status=(string)($b['status']??'');if(!in_array($status,['published','hidden','removed'],true))out(['ok'=>false,'error'=>'Invalid status'],422);db()->prepare('UPDATE videos SET status=? WHERE id=?')->execute([$status,(int)$x[1]]);out(['ok'=>true]);}
 if($m==='POST'&&preg_match('#^api/admin/verification/(\\d+)$#',$path,$x)){ $u=auth();$q=db()->prepare('SELECT role_name FROM admin_roles WHERE user_id=?');$q->execute([$u['id']]);if(!$q->fetchColumn())out(['ok'=>false,'error'=>'Admin access required'],403);$status=(string)($b['status']??'');if(!in_array($status,['approved','rejected'],true))out(['ok'=>false,'error'=>'Invalid status'],422);db()->prepare('UPDATE verification_requests SET status=?,moderator_note=?,reviewed_at=UTC_TIMESTAMP() WHERE id=?')->execute([$status,mb_substr((string)($b['note']??''),0,500),(int)$x[1]]);if($status==='approved'){$q=db()->prepare('SELECT user_id FROM verification_requests WHERE id=?');$q->execute([(int)$x[1]]);$id=$q->fetchColumn();if($id)db()->prepare('UPDATE profiles SET is_verified=1 WHERE user_id=?')->execute([$id]);}out(['ok'=>true]);}
