@@ -1,152 +1,324 @@
 package com.tiktokx.app
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.pager.VerticalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
 
-private val bg=Color(0xFF050507)
-private val accent=Color(0xFFFF3158)
-private val muted=Color(0xFFB8B8C0)
-private data class Clip(val id:String,val author:String,val title:String,val url:String,val likes:Int)
-private val clips=emptyList<Clip>()
-class MainActivity:ComponentActivity(){
- override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);window.statusBarColor=android.graphics.Color.BLACK;window.navigationBarColor=android.graphics.Color.BLACK;setContent{TikTokXApp()}}
-}
-@Composable private fun TikTokXApp(){
- val ctx=LocalContext.current
- val prefs=remember{ctx.getSharedPreferences("tiktok_x",0)}
- val liked=remember{mutableStateListOf<String>().apply{addAll(prefs.getStringSet("liked",emptySet())?:emptySet())}}
- val saved=remember{mutableStateListOf<String>().apply{addAll(prefs.getStringSet("saved",emptySet())?:emptySet())}}
- val history=remember{mutableStateListOf<String>().apply{addAll(prefs.getString("history","")!!.split(",").filter{it.isNotBlank()})}}
- val comments=remember{mutableStateMapOf<String,MutableList<String>>()}
- var tab by remember{mutableStateOf("Главная")}
- var query by remember{mutableStateOf("")}
- var commentClip by remember{mutableStateOf<Clip?>(null)}
- var commentText by remember{mutableStateOf("")}
- val pager=rememberPagerState(pageCount={clips.size})
- val scope=rememberCoroutineScope()
- val player=remember{ExoPlayer.Builder(ctx).build().apply{repeatMode=ExoPlayer.REPEAT_MODE_ONE}}
- LaunchedEffect(tab,pager.currentPage){
-  if(tab=="Главная"){
-   val clip=clips[pager.currentPage]
-   player.setMediaItem(MediaItem.fromUri(clip.url));player.prepare();player.play()
-   history.remove(clip.id);history.add(0,clip.id);while(history.size>30)history.removeAt(history.lastIndex)
-   prefs.edit().putString("history",history.joinToString(",")).apply()
-  }else player.pause()
- }
- DisposableEffect(Unit){onDispose{player.release()}}
- MaterialTheme(colorScheme=darkColorScheme(primary=accent,background=bg,surface=Color(0xFF15151B))){
-  Scaffold(containerColor=bg,bottomBar={
-   NavigationBar(containerColor=Color(0xFF101015)){
-    listOf("Главная","Поиск","Избранное","Профиль").forEach{item->
-     val icon=when(item){"Главная"->Icons.Default.Home;"Поиск"->Icons.Default.Search;"Избранное"->Icons.Default.Bookmark;else->Icons.Default.Person}
-     NavigationBarItem(selected=tab==item,onClick={tab=item},icon={Icon(icon,null)},label={Text(item,fontSize=10.sp)},colors=NavigationBarItemDefaults.colors(selectedIconColor=accent,selectedTextColor=accent,indicatorColor=accent.copy(.12f),unselectedIconColor=Color.LightGray,unselectedTextColor=Color.LightGray))
+private val AppBg = Color(0xFF08080B)
+private val AppAccent = Color(0xFFFE2C55)
+private val AppSurface = Color(0xFF17171D)
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.statusBarColor = android.graphics.Color.BLACK
+        window.navigationBarColor = android.graphics.Color.BLACK
+        setContent { TikTokXRoot() }
     }
-   }
-  }){padding->
-   Box(Modifier.fillMaxSize().padding(padding)){
-    when(tab){
-     "Главная"->VerticalPager(state=pager,modifier=Modifier.fillMaxSize(),key={clips[it].id}){index->
-      val clip=clips[index]
-      Box(Modifier.fillMaxSize().background(Color.Black)){
-       if(index==pager.currentPage)AndroidView(factory={viewContext->PlayerView(viewContext).apply{useController=false;resizeMode=AspectRatioFrameLayout.RESIZE_MODE_ZOOM;this.player=player}},update={it.player=player},modifier=Modifier.fillMaxSize())
-       Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(.35f),Color.Transparent,Color.Black.copy(.78f)))))
-       Text("Подписки       Для вас",Modifier.align(Alignment.TopCenter).padding(top=14.dp),color=Color.White,fontWeight=FontWeight.Bold,fontSize=17.sp)
-       Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(.78f).padding(start=16.dp,bottom=22.dp)){
-        Text(clip.author,color=Color.White,fontWeight=FontWeight.Bold,fontSize=16.sp)
-        Text(clip.title,color=Color.White,fontSize=14.sp,modifier=Modifier.padding(top=8.dp))
-        Text("♫ Original sound · TikTok X",color=Color.White,fontSize=12.sp,modifier=Modifier.padding(top=10.dp))
-        Text("",color=Color.Transparent,fontSize=1.sp)
-       }
-       Column(Modifier.align(Alignment.BottomEnd).padding(end=12.dp,bottom=26.dp),horizontalAlignment=Alignment.CenterHorizontally){
-        Box(Modifier.size(44.dp).background(Color.White,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Default.Person,null,tint=Color.DarkGray)}
-        Spacer(Modifier.height(18.dp))
-        FeedAction(if(clip.id in liked)Icons.Default.Favorite else Icons.Default.FavoriteBorder,if(clip.id in liked)accent else Color.White,shortCount(clip.likes+if(clip.id in liked)1 else 0)){
-         if(clip.id in liked)liked.remove(clip.id)else liked.add(clip.id);prefs.edit().putStringSet("liked",liked.toSet()).apply()
+}
+
+private data class AppUser(val id: Long, val username: String, val email: String, val displayName: String = "", val bio: String = "", val verified: Boolean = false)
+private data class AppVideo(val id: Long, val username: String, val caption: String, val url: String, val likes: Int, val comments: Int, val views: Long)
+
+@Composable
+private fun TikTokXRoot() {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("tiktokx_settings", 0) }
+    var apiBase by remember { mutableStateOf(prefs.getString("api_base", "") ?: "") }
+    var token by remember { mutableStateOf(prefs.getString("auth_token", null)) }
+    var user by remember { mutableStateOf<AppUser?>(null) }
+
+    MaterialTheme(colorScheme = darkColorScheme(primary = AppAccent, background = AppBg, surface = AppSurface)) {
+        if (token.isNullOrBlank()) {
+            AuthScreen(
+                initialBase = apiBase,
+                onServerChange = { apiBase = it; prefs.edit().putString("api_base", it).apply() },
+                onAuthenticated = { newToken, newUser ->
+                    token = newToken
+                    user = newUser
+                    prefs.edit().putString("auth_token", newToken).apply()
+                }
+            )
+        } else {
+            MainScreen(
+                base = apiBase,
+                token = token!!,
+                initialUser = user,
+                onLogout = {
+                    token = null
+                    user = null
+                    prefs.edit().remove("auth_token").apply()
+                },
+                onUserLoaded = { user = it }
+            )
         }
-        FeedAction(Icons.Default.ChatBubble,Color.White,"Комменты"){commentClip=clip}
-        FeedAction(if(clip.id in saved)Icons.Default.Bookmark else Icons.Default.BookmarkBorder,if(clip.id in saved)accent else Color.White,"Сохранить"){
-         if(clip.id in saved)saved.remove(clip.id)else saved.add(clip.id);prefs.edit().putStringSet("saved",saved.toSet()).apply()
-        }
-        FeedAction(Icons.Default.Share,Color.White,"Поделиться"){
-         val send=Intent(Intent.ACTION_SEND).apply{type="text/plain";putExtra(Intent.EXTRA_TEXT,"TikTok X — "+clip.title+"\n"+clip.url)}
-         ctx.startActivity(Intent.createChooser(send,"Поделиться роликом"))
-        }
-       }
-      }
-     }
-     "Поиск"->Column(Modifier.fillMaxSize().padding(18.dp)){
-      Text("Поиск",color=Color.White,fontSize=26.sp,fontWeight=FontWeight.Bold)
-      OutlinedTextField(query,{query=it},modifier=Modifier.fillMaxWidth().padding(top=14.dp),singleLine=true,placeholder={Text("Найти автора или видео")},leadingIcon={Icon(Icons.Default.Search,null)})
-      clips.filter{it.author.contains(query,true)||it.title.contains(query,true)}.forEach{clip->
-       Row(Modifier.fillMaxWidth().clickable{tab="Главная";scope.launch{pager.scrollToPage(clips.indexOf(clip))}}.padding(vertical=14.dp),verticalAlignment=Alignment.CenterVertically){
-        Icon(Icons.Default.PlayCircle,null,tint=accent,modifier=Modifier.size(36.dp))
-        Column(Modifier.padding(start=12.dp)){Text(clip.title,color=Color.White);Text(clip.author,color=muted,fontSize=12.sp)}
-       };HorizontalDivider(color=Color.DarkGray)
-      }
-     }
-     "Избранное"->Column(Modifier.fillMaxSize().padding(18.dp)){
-      Text("Избранное",color=Color.White,fontSize=26.sp,fontWeight=FontWeight.Bold)
-      val items=clips.filter{it.id in saved}
-      if(items.isEmpty())Text("Сохраняй понравившиеся ролики кнопкой закладки в ленте.",color=muted,modifier=Modifier.padding(top=18.dp))
-      items.forEach{clip->SavedClipRow(clip){tab="Главная";scope.launch{pager.scrollToPage(clips.indexOf(clip))}}}
-     }
-     else->Column(Modifier.fillMaxSize().padding(22.dp),horizontalAlignment=Alignment.CenterHorizontally){
-      Spacer(Modifier.height(30.dp))
-      Box(Modifier.size(90.dp).background(Brush.linearGradient(listOf(accent,Color(0xFF6639C9))),CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Default.Person,null,tint=Color.White,modifier=Modifier.size(52.dp))}
-      Text("Пользователь TikTok X",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=16.dp))
-      Text("@user_tiktokx",color=muted)
-      Row(Modifier.fillMaxWidth().padding(vertical=28.dp),horizontalArrangement=Arrangement.SpaceEvenly){ProfileStat("Лайки",liked.size.toString());ProfileStat("Избранное",saved.size.toString());ProfileStat("История",history.size.toString())}
-      Text("Локальный профиль демонстрационной версии. Регистрация и синхронизация пока не подключены.",color=muted,fontSize=13.sp)
-      OutlinedButton(onClick={tab="Главная"}){Text("Открыть видеоленту")}
-     }
     }
-   }
-  }
- }
- commentClip?.let{clip->AlertDialog(onDismissRequest={commentClip=null},title={Text("Комментарии")},text={
-  Column{
-   val list=comments[clip.id]?:emptyList()
-   if(list.isEmpty())Text("Пока нет комментариев. Будь первым!",color=muted)
-   list.forEach{Text(it,color=Color.White,modifier=Modifier.padding(vertical=4.dp))}
-   OutlinedTextField(commentText,{commentText=it},label={Text("Написать комментарий")},singleLine=true)
-  }
- },confirmButton={TextButton(onClick={
-  if(commentText.isNotBlank()){val list=comments.getOrPut(clip.id){mutableStateListOf<String>()};list.add("@user_tiktokx: "+commentText.trim());commentText=""}
-  commentClip=null
- }){Text("Отправить",color=accent)}},dismissButton={TextButton(onClick={commentClip=null}){Text("Закрыть")}},containerColor=Color(0xFF191920))}
 }
-@Composable private fun FeedAction(icon:androidx.compose.ui.graphics.vector.ImageVector,tint:Color,label:String,onClick:()->Unit){
- Column(Modifier.padding(bottom=18.dp).clickable(onClick=onClick),horizontalAlignment=Alignment.CenterHorizontally){Icon(icon,null,tint=tint,modifier=Modifier.size(30.dp));Text(label,color=Color.White,fontSize=9.sp,modifier=Modifier.padding(top=3.dp))}
+
+@Composable
+private fun AuthScreen(
+    initialBase: String,
+    onServerChange: (String) -> Unit,
+    onAuthenticated: (String, AppUser) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var base by remember { mutableStateOf(initialBase) }
+    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var registering by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("Укажи адрес API своего сайта на REG.RU, например https://example.ru/api") }
+
+    Surface(Modifier.fillMaxSize(), color = AppBg) {
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("TikTok X", color = Color.White, style = MaterialTheme.typography.headlineLarge)
+            Text(if (registering) "Создание аккаунта" else "Вход в аккаунт", color = Color.LightGray)
+            Spacer(Modifier.height(22.dp))
+            OutlinedTextField(
+                value = base, onValueChange = { base = it; onServerChange(it) },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text("Адрес API") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+            )
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = username, onValueChange = { username = it },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text(if (registering) "Username (латиница)" else "Username или Email") }
+            )
+            if (registering) {
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = email, onValueChange = { email = it },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text("Email") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = password, onValueChange = { password = it },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                label = { Text("Пароль (от 10 символов при регистрации)") },
+                visualTransformation = PasswordVisualTransformation()
+            )
+            Spacer(Modifier.height(16.dp))
+            Button(
+                enabled = !busy,
+                onClick = {
+                    scope.launch {
+                        busy = true
+                        message = "Подключение к серверу..."
+                        try {
+                            val result = withContext(Dispatchers.IO) {
+                                if (registering) Api.register(base, username.trim(), email.trim(), password)
+                                else Api.login(base, username.trim(), password)
+                            }
+                            onAuthenticated(result.first, result.second)
+                            message = ""
+                        } catch (e: Exception) {
+                            message = e.message ?: "Не удалось подключиться"
+                        } finally { busy = false }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = AppAccent)
+            ) { Text(if (busy) "Подождите..." else if (registering) "Зарегистрироваться" else "Войти") }
+            TextButton(onClick = { registering = !registering; message = "" }) {
+                Text(if (registering) "Уже есть аккаунт? Войти" else "Создать аккаунт", color = Color.White)
+            }
+            if (message.isNotBlank()) Text(message, color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
+        }
+    }
 }
-@Composable private fun SavedClipRow(clip:Clip,onClick:()->Unit){
- Row(Modifier.fillMaxWidth().clickable(onClick=onClick).padding(vertical=14.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Default.PlayCircle,null,tint=accent,modifier=Modifier.size(34.dp));Column(Modifier.padding(start=12.dp)){Text(clip.title,color=Color.White);Text(clip.author,color=muted,fontSize=12.sp)}}
- HorizontalDivider(color=Color.DarkGray)
+
+@Composable
+private fun MainScreen(
+    base: String, token: String, initialUser: AppUser?,
+    onLogout: () -> Unit, onUserLoaded: (AppUser) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var tab by remember { mutableIntStateOf(0) }
+    var videos by remember { mutableStateOf<List<AppVideo>>(emptyList()) }
+    var searchText by remember { mutableStateOf("") }
+    var users by remember { mutableStateOf<List<AppUser>>(emptyList()) }
+    var currentUser by remember { mutableStateOf(initialUser) }
+    var status by remember { mutableStateOf("Загружаем данные...") }
+    var busy by remember { mutableStateOf(false) }
+
+    fun loadFeed() {
+        scope.launch {
+            busy = true
+            try {
+                videos = withContext(Dispatchers.IO) { Api.feed(base, token) }
+                status = if (videos.isEmpty()) "Пока нет опубликованных видео. Загрузи первый ролик." else ""
+            } catch (e: Exception) { status = e.message ?: "Ошибка загрузки ленты" }
+            finally { busy = false }
+        }
+    }
+
+    LaunchedEffect(base, token) {
+        try {
+            val me = withContext(Dispatchers.IO) { Api.me(base, token) }
+            currentUser = me
+            onUserLoaded(me)
+        } catch (_: Exception) { }
+        loadFeed()
+    }
+
+    Scaffold(
+        containerColor = AppBg,
+        topBar = {
+            TopAppBar(
+                title = { Text("TikTok X", color = Color.White) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppBg),
+                actions = {
+                    IconButton(onClick = { loadFeed() }) { Icon(Icons.Default.Refresh, "Обновить", tint = Color.White) }
+                    IconButton(onClick = onLogout) { Icon(Icons.Default.Logout, "Выйти", tint = Color.White) }
+                }
+            )
+        },
+        bottomBar = {
+            NavigationBar(containerColor = AppSurface) {
+                listOf("Лента", "Поиск", "Профиль").forEachIndexed { i, label ->
+                    val icon = when (i) { 0 -> Icons.Default.Home; 1 -> Icons.Default.Search; else -> Icons.Default.Person }
+                    NavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { Icon(icon, null) }, label = { Text(label) })
+                }
+            }
+        }
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+            when (tab) {
+                0 -> {
+                    if (status.isNotBlank()) Text(status, color = Color.LightGray, modifier = Modifier.padding(vertical = 14.dp))
+                    LazyColumn {
+                        items(videos, key = { it.id }) { video ->
+                            Card(Modifier.fillMaxWidth().padding(vertical = 8.dp), colors = CardDefaults.cardColors(containerColor = AppSurface)) {
+                                Column(Modifier.padding(14.dp)) {
+                                    Text("@${video.username}", color = Color.White, style = MaterialTheme.typography.titleMedium)
+                                    Text(video.caption, color = Color.LightGray, modifier = Modifier.padding(top = 8.dp))
+                                    if (video.url.isNotBlank()) {
+                                        Text("Открыть видео", color = AppAccent, modifier = Modifier.padding(top = 10.dp).clickable {
+                                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(video.url))) }
+                                        })
+                                    }
+                                    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("♥ ${video.likes}", color = Color.White, modifier = Modifier.clickable {
+                                            scope.launch { runCatching { withContext(Dispatchers.IO) { Api.like(base, token, video.id) }; loadFeed() }.onFailure { status = it.message ?: "Ошибка лайка" } }
+                                        })
+                                        Text("Комментарии: ${video.comments}", color = Color.White)
+                                        Text("Просмотры: ${video.views}", color = Color.Gray)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                1 -> {
+                    OutlinedTextField(searchText, { searchText = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Имя пользователя") })
+                    Button(onClick = {
+                        scope.launch {
+                            try { users = withContext(Dispatchers.IO) { Api.search(base, token, searchText) }; status = "" }
+                            catch (e: Exception) { status = e.message ?: "Ошибка поиска" }
+                        }
+                    }, colors = ButtonDefaults.buttonColors(containerColor = AppAccent), modifier = Modifier.padding(top = 8.dp)) { Text("Найти") }
+                    LazyColumn {
+                        items(users) { found -> Text("@${found.username}  ${found.displayName}", color = Color.White, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) }
+                    }
+                    if (status.isNotBlank()) Text(status, color = Color.LightGray)
+                }
+                else -> {
+                    Text(currentUser?.displayName?.ifBlank { currentUser?.username ?: "Профиль" } ?: "Профиль", color = Color.White, style = MaterialTheme.typography.headlineSmall)
+                    Text("@${currentUser?.username ?: ""}", color = Color.LightGray, modifier = Modifier.padding(top = 8.dp))
+                    Text(currentUser?.email ?: "", color = Color.Gray)
+                    Text(currentUser?.bio ?: "", color = Color.LightGray, modifier = Modifier.padding(top = 12.dp))
+                    if (currentUser?.verified == true) Text("Подтверждённый аккаунт", color = Color(0xFF25F4EE))
+                    Text("Аккаунт загружается с сервера. Профиль не подменяется тестовыми данными.", color = Color.Gray, modifier = Modifier.padding(top = 18.dp))
+                }
+            }
+        }
+    }
 }
-@Composable private fun ProfileStat(label:String,value:String){Column(horizontalAlignment=Alignment.CenterHorizontally){Text(value,color=Color.White,fontSize=19.sp,fontWeight=FontWeight.Bold);Text(label,color=muted,fontSize=12.sp)}}
-private fun shortCount(value:Int)=if(value>=1000)String.format("%.1fK",value/1000f)else value.toString()
+
+private object Api {
+    private fun endpoint(base: String, path: String): String {
+        val root = base.trim().trimEnd('/')
+        require(root.startsWith("https://")) { "Адрес API должен начинаться с https://" }
+        return root + path
+    }
+
+    private fun request(base: String, path: String, method: String, body: JSONObject? = null, token: String? = null): JSONObject {
+        val c = URL(endpoint(base, path)).openConnection() as HttpURLConnection
+        c.requestMethod = method
+        c.connectTimeout = 15000
+        c.readTimeout = 20000
+        c.setRequestProperty("Accept", "application/json")
+        c.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+        if (!token.isNullOrBlank()) c.setRequestProperty("Authorization", "Bearer $token")
+        if (body != null) {
+            c.doOutput = true
+            c.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+        }
+        val code = c.responseCode
+        val stream = if (code in 200..299) c.inputStream else c.errorStream
+        val raw = stream?.bufferedReader()?.use { it.readText() } ?: ""
+        c.disconnect()
+        val json = try { JSONObject(raw) } catch (_: Exception) { throw IllegalStateException("Сервер вернул HTTP $code без JSON-ответа") }
+        if (code !in 200..299 || !json.optBoolean("ok", false)) throw IllegalStateException(json.optString("error", "HTTP $code"))
+        return json
+    }
+
+    fun login(base: String, login: String, password: String): Pair<String, AppUser> {
+        val r = request(base, "/login", "POST", JSONObject().put("login", login).put("password", password))
+        return parseAuth(r)
+    }
+    fun register(base: String, username: String, email: String, password: String): Pair<String, AppUser> {
+        val r = request(base, "/register", "POST", JSONObject().put("username", username).put("email", email).put("password", password))
+        return parseAuth(r)
+    }
+    private fun parseAuth(r: JSONObject): Pair<String, AppUser> {
+        val u = r.getJSONObject("user")
+        return r.getString("token") to AppUser(u.getLong("id"), u.getString("username"), u.optString("email"))
+    }
+    fun me(base: String, token: String): AppUser {
+        val u = request(base, "/me", "GET", token = token).getJSONObject("user")
+        return AppUser(u.getLong("id"), u.getString("username"), u.optString("email"), u.optString("display_name"), u.optString("bio"), u.optInt("is_verified") == 1)
+    }
+    fun feed(base: String, token: String): List<AppVideo> {
+        val a = request(base, "/feed", "GET", token = token).optJSONArray("videos") ?: return emptyList()
+        return buildList { for (i in 0 until a.length()) { val v = a.getJSONObject(i); add(AppVideo(v.getLong("id"), v.optString("username"), v.optString("caption"), v.optString("video_path"), v.optInt("likes_count"), v.optInt("comments_count"), v.optLong("views_count"))) } }
+    }
+    fun search(base: String, token: String, query: String): List<AppUser> {
+        val a = request(base, "/search?q=" + URLEncoder.encode(query, "UTF-8"), "GET", token = token).optJSONArray("users") ?: return emptyList()
+        return buildList { for (i in 0 until a.length()) { val u = a.getJSONObject(i); add(AppUser(u.getLong("id"), u.optString("username"), "", u.optString("display_name"), verified = u.optInt("is_verified") == 1)) } }
+    }
+    fun like(base: String, token: String, id: Long) { request(base, "/videos/$id/like", "POST", JSONObject(), token) }
+}
