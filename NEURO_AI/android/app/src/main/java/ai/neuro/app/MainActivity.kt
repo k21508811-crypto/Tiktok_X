@@ -6,340 +6,228 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalContext
 
-private val backgroundTop = Color(0xFF090B14)
-private val backgroundBottom = Color(0xFF171126)
-private val violet = Color(0xFF9B72FF)
-private val lavender = Color(0xFFC7A8FF)
-private val muted = Color(0xFFA9A4B8)
-
-private enum class AppSection(val title: String) {
-    HOME("Главная"),
-    CLOUD("CLOUD"),
-    ALICE("АЛИСА AI"),
-    CHATGPT("CHATGPT")
-}
+private val bg = Color(0xFF08070E)
+private val panel = Color(0xFF191426)
+private val purple = Color(0xFF9B55FF)
+private val muted = Color(0xFFB7AEC9)
+private data class Service(val title: String, val url: String, val subtitle: String)
+private val services = listOf(
+    Service("ChatGPT", "https://chatgpt.com/", "Встроенный веб-чат ChatGPT"),
+    Service("Cloud", "https://www.cloud.com/", "Официальный сайт Cloud"),
+    Service("Алиса AI", "https://alice.yandex.ru/", "ИИ-помощник Яндекса")
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = violet,
-                    background = backgroundTop,
-                    surface = Color(0xFF1B1728),
-                    onPrimary = Color.White,
-                    onBackground = Color.White,
-                    onSurface = Color.White
-                )
-            ) {
-                NeuroApp()
-            }
+            MaterialTheme(colorScheme = darkColorScheme(
+                primary = purple, background = bg, surface = panel,
+                onPrimary = Color.White, onBackground = Color.White, onSurface = Color.White
+            )) { NeuroApp() }
         }
     }
 }
 
 @Composable
 private fun NeuroApp() {
-    var section by remember { mutableStateOf(AppSection.HOME) }
-    var showProInfo by remember { mutableStateOf(false) }
+    var intro by remember { mutableStateOf(true) }
+    var selected by remember { mutableStateOf("ChatGPT") }
+    var premiumInfo by remember { mutableStateOf(false) }
+    var currentWebView by remember { mutableStateOf<WebView?>(null) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(backgroundTop, Color(0xFF11101D), backgroundBottom)
-                )
-            )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+    BackHandler(enabled = currentWebView?.canGoBack() == true && !intro && selected != "PREMIUM") {
+        currentWebView?.goBack()
+    }
+
+    if (intro) {
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(listOf(Color(0xFF05040A), Color(0xFF170D2B), Color(0xFF05040A)))
+            ),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(Brush.linearGradient(listOf(violet, Color(0xFF5435A6))), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("N", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Black)
-            }
-            Spacer(Modifier.width(11.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text("AI NEURO", fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
-                Text("ИНТЕЛЛЕКТ НОВОГО ПОКОЛЕНИЯ", fontSize = 9.sp, color = muted, letterSpacing = 1.sp)
-            }
-            Surface(color = Color(0xFF302342), shape = RoundedCornerShape(50)) {
-                Text(
-                    "BETA",
-                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
-                    color = lavender,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp
-                )
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(28.dp)) {
+                Image(painterResource(R.drawable.neuro_icon), "NEURO AI", Modifier.size(250.dp), contentScale = ContentScale.Fit)
+                Spacer(Modifier.height(22.dp))
+                Text("ИНТЕЛЛЕКТ. ВОЗМОЖНОСТИ. БУДУЩЕЕ.", color = Color(0xFFD8C6FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(44.dp))
+                Button(
+                    onClick = { intro = false },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = purple)
+                ) { Text("ПРОДОЛЖИТЬ", fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp) }
             }
         }
-
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (section) {
-                AppSection.HOME -> HomeScreen(onProClick = { showProInfo = true })
-                AppSection.CLOUD -> WebServiceScreen(
-                    title = "CLOUD",
-                    subtitle = "Официальный сайт Cloud.com",
-                    url = "https://www.cloud.com"
-                )
-                AppSection.ALICE -> WebServiceScreen(
-                    title = "АЛИСА AI",
-                    subtitle = "Нейросеть Яндекса",
-                    url = "https://alice.yandex.ru"
-                )
-                AppSection.CHATGPT -> LockedPremiumScreen(onUnlockClick = { showProInfo = true })
+    } else {
+        Column(Modifier.fillMaxSize().background(bg).padding(top = 12.dp, start = 14.dp, end = 14.dp, bottom = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
+                Image(painterResource(R.drawable.neuro_icon), "NEURO AI", Modifier.size(48.dp), contentScale = ContentScale.Crop)
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("NEURO AI", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    Text("Интеллект. Возможности. Будущее.", fontSize = 10.sp, color = muted)
+                }
+                Text("PRO", color = Color(0xFFD5B3FF), fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF100E1B))
-                .padding(horizontal = 5.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AppSection.values().forEach { item ->
-                val selected = section == item
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable {
-                            if (item == AppSection.CHATGPT) showProInfo = true else section = item
+            LazyColumn(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                item {
+                    Text("ИИ-СЕРВИСЫ", color = muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        services.forEach { service ->
+                            ServiceTile(service.title, selected == service.title, Modifier.weight(1f)) {
+                                currentWebView = null
+                                selected = service.title
+                            }
                         }
-                        .padding(vertical = 5.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        when (item) {
-                            AppSection.HOME -> "⌂"
-                            AppSection.CLOUD -> "☁"
-                            AppSection.ALICE -> "✦"
-                            AppSection.CHATGPT -> "▣"
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            currentWebView = null
+                            selected = "PREMIUM"
+                            premiumInfo = true
                         },
-                        color = if (selected) lavender else muted,
-                        fontSize = 19.sp
+                        shape = RoundedCornerShape(17.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF241632))
+                    ) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("🔒", fontSize = 23.sp)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("PREMIUM CHAT GPT", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 14.sp)
+                                Text("Расширенный доступ • только PRO", color = muted, fontSize = 11.sp)
+                            }
+                            Text("ЗАМОК", color = Color(0xFFD5B3FF), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
+                item {
+                    Text(
+                        when (selected) { "ChatGPT" -> "CHATGPT"; "Cloud" -> "CLOUD"; "Алиса AI" -> "АЛИСА AI"; else -> "PREMIUM CHAT GPT" },
+                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
                     )
                     Text(
-                        if (item == AppSection.CHATGPT) "PREMIUM" else item.title,
-                        color = if (selected) lavender else muted,
-                        fontSize = 9.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                        services.firstOrNull { it.title == selected }?.subtitle ?: "Раздел закрыт до подтверждения PRO-подписки",
+                        color = muted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp, bottom = 8.dp)
                     )
-                    if (item == AppSection.CHATGPT) {
-                        Text("🔒", fontSize = 9.sp)
+                }
+                item {
+                    if (selected == "PREMIUM") LockedPremium { premiumInfo = true }
+                    else {
+                        val url = services.firstOrNull { it.title == selected }?.url ?: services[0].url
+                        WebPanel(url) { currentWebView = it }
                     }
                 }
             }
+            Text(
+                "NEURO AI  •  СТОРОННИЕ СЕРВИСЫ ОТКРЫВАЮТСЯ В WEBVIEW",
+                color = Color(0xFF756D83), fontSize = 8.sp,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 
-    if (showProInfo) {
+    if (premiumInfo) {
         AlertDialog(
-            onDismissRequest = { showProInfo = false },
-            containerColor = Color(0xFF211B31),
-            title = { Text("PREMIUM CHATGPT", color = Color.White, fontWeight = FontWeight.Bold) },
+            onDismissRequest = { premiumInfo = false },
+            containerColor = panel,
+            title = { Text("PREMIUM CHAT GPT", color = Color.White, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "Раздел ChatGPT закрыт для бесплатного доступа. Он будет открываться только после подтверждения активной AI Neuro PRO подписки. Оплата и серверная проверка подписки пока не подключены.",
-                    color = Color(0xFFD8D2E5)
+                    "Этот раздел закрыт. Он откроется только после подтверждения активной PRO-подписки. Оплата RuStore и серверная проверка подписки пока не подключены, поэтому доступ не будет разблокирован фиктивно.",
+                    color = muted
                 )
             },
-            confirmButton = {
-                Button(
-                    onClick = { showProInfo = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = violet)
-                ) { Text("ПОНЯТНО") }
-            }
+            confirmButton = { TextButton(onClick = { premiumInfo = false }) { Text("ПОНЯТНО", color = purple) } }
         )
     }
 }
 
 @Composable
-private fun HomeScreen(onProClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 22.dp, vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+private fun ServiceTile(title: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Card(
+        modifier = modifier.height(58.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = if (active) Color(0xFF382052) else panel)
     ) {
-        Spacer(Modifier.weight(1f))
-        Box(
-            modifier = Modifier
-                .size(104.dp)
-                .shadow(24.dp, CircleShape)
-                .background(
-                    Brush.linearGradient(listOf(Color(0xFF5B3BA0), Color(0xFF241C3D), Color(0xFF171426))),
-                    CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("✦", color = lavender, fontSize = 55.sp)
-        }
-        Spacer(Modifier.height(24.dp))
-        Text("AI Neuro", color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Text("Ваш интеллектуальный помощник", color = muted, fontSize = 14.sp)
-        Spacer(Modifier.height(25.dp))
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = Color(0xCC201B30),
-            shape = RoundedCornerShape(22.dp)
-        ) {
-            Column(Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Здравствуйте!", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.weight(1f))
-                    Text("БЕТА-ТЕСТ", color = Color(0xFFFFC66D), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "Это бета-версия AI Neuro. Основной ИИ-чат временно недоступен. Используйте разделы CLOUD и Алиса AI в нижнем меню.",
-                    color = Color(0xFFE0DCEB),
-                    fontSize = 14.sp,
-                    lineHeight = 22.sp
-                )
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = Color(0xFF171426),
-            shape = RoundedCornerShape(18.dp)
-        ) {
-            Column(Modifier.padding(17.dp)) {
-                Text("AI NEURO PRO", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Spacer(Modifier.height(7.dp))
-                Text(
-                    "Премиум-доступ и закрытый раздел ChatGPT.",
-                    color = muted,
-                    fontSize = 12.sp
-                )
-                Spacer(Modifier.height(14.dp))
-                Button(
-                    onClick = onProClick,
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = RoundedCornerShape(15.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = violet)
-                ) {
-                    Text("ОФОРМИТЬ PRO", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        Spacer(Modifier.weight(1f))
-        Text(
-            "AI NEURO • ВАШ ИНТЕЛЛЕКТ БЕЗ ГРАНИЦ",
-            color = Color(0xFF777184),
-            fontSize = 9.sp,
-            letterSpacing = 1.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-    }
-}
-
-@Composable
-private fun LockedPremiumScreen(onUnlockClick: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("🔒", fontSize = 54.sp)
-        Spacer(Modifier.height(18.dp))
-        Text("PREMIUM CHATGPT", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "Доступ к ChatGPT доступен только подписчикам AI Neuro PRO.",
-            color = muted,
-            textAlign = TextAlign.Center,
-            fontSize = 14.sp
-        )
-        Spacer(Modifier.height(22.dp))
-        Button(onClick = onUnlockClick, colors = ButtonDefaults.buttonColors(containerColor = violet)) {
-            Text("ОТКРЫТЬ PRO")
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(title, color = if (active) Color.White else muted, fontWeight = FontWeight.Bold, fontSize = 11.sp)
         }
     }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun WebServiceScreen(title: String, subtitle: String, url: String) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
-            Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text(subtitle, color = muted, fontSize = 12.sp)
-        }
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { context ->
-                WebView(context).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.loadsImagesAutomatically = true
-                    settings.javaScriptCanOpenWindowsAutomatically = false
-                    webChromeClient = WebChromeClient()
-                    webViewClient = WebViewClient()
-                    tag = url
-                    loadUrl(url)
-                }
-            },
-            update = { view ->
-                if (view.tag != url) {
-                    view.tag = url
-                    view.loadUrl(url)
+private fun WebPanel(url: String, onCreated: (WebView) -> Unit) {
+    val context = LocalContext.current
+    AndroidView(
+        modifier = Modifier.fillMaxWidth().height(540.dp),
+        factory = {
+            WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.loadsImagesAutomatically = true
+                settings.javaScriptCanOpenWindowsAutomatically = true
+                settings.setSupportMultipleWindows(false)
+                settings.useWideViewPort = true
+                settings.loadWithOverviewMode = true
+                settings.allowFileAccess = false
+                settings.allowContentAccess = false
+                webViewClient = WebViewClient()
+                webChromeClient = WebChromeClient()
+                onCreated(this)
+                loadUrl(url)
+            }
+        },
+        update = { onCreated(it) }
+    )
+}
+
+@Composable
+private fun LockedPremium(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().height(250.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = panel)
+    ) {
+        Box(Modifier.fillMaxSize().padding(22.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("🔒", fontSize = 42.sp)
+                Spacer(Modifier.height(12.dp))
+                Text("PREMIUM CHAT GPT", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp)
+                Text("Доступ только для подписчиков PRO", color = muted, fontSize = 12.sp)
+                Spacer(Modifier.height(18.dp))
+                Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = purple)) {
+                    Text("ПОДРОБНЕЕ О PRO")
                 }
             }
-        )
+        }
     }
 }
