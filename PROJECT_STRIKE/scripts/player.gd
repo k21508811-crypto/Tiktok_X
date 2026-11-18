@@ -169,7 +169,7 @@ func _die() -> void:
 	if root.has_method("player_died"):
 		root.player_died()
 	await get_tree().create_timer(RESPAWN_TIME).timeout
-	global_position = Vector3(0, 1.2, 15)
+	global_position = Vector3(0, 0.0, 15)
 	health = 100
 	armor = 100
 	ammo = MAGAZINE_SIZE
