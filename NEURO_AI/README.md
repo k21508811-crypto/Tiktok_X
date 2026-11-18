@@ -35,3 +35,17 @@ Open `NEURO_AI/android` in Android Studio or run the **NEURO AI Android** GitHub
 3. Implement chat history, export and user-controlled deletion.
 4. Test every provider's login and navigation on physical Android devices.
 5. Add final store artwork and release signing.
+
+
+## Release signing (RuStore)
+
+The workflow always builds a debug APK. Signed release APK and AAB are built only after these GitHub Actions repository secrets are configured:
+
+- `KEYSTORE_BASE64` — Base64-encoded contents of the private `.jks` file.
+- `KEYSTORE_PASSWORD` — keystore password.
+- `KEY_ALIAS` — signing key alias.
+- `KEY_PASSWORD` — signing key password.
+
+Create and back up the keystore securely before configuring the secrets. Never commit the keystore or passwords to Git. In GitHub, open **Settings → Secrets and variables → Actions → New repository secret** and add the four values. The release job restores the keystore into the temporary runner directory, then creates `neuro-ai-release-apk` and `neuro-ai-release-aab` artifacts.
+
+Until all four secrets exist, the release job is skipped and only the debug artifact is produced. Keep the original keystore and passwords in secure offline backups; the same signing identity must be used for future updates.
