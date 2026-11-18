@@ -51,7 +51,7 @@ func _input(event: InputEvent) -> void:
 				look_pointer = -1
 	elif event is InputEventScreenDrag:
 		if event.index == joystick_pointer:
-			var offset := event.position - joystick_center
+			var offset: Vector2 = event.position - joystick_center
 			joystick_vector = offset.limit_length(76.0) / 76.0
 			_update_movement()
 			queue_redraw()
