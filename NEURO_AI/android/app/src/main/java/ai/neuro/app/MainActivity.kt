@@ -124,19 +124,21 @@ private fun NeuroApp() {
             }
         }
 
-        when (section) {
-            AppSection.HOME -> HomeScreen(onProClick = { showProInfo = true })
-            AppSection.CLOUD -> WebServiceScreen(
-                title = "CLOUD",
-                subtitle = "Официальный сайт Cloud.com",
-                url = "https://www.cloud.com"
-            )
-            AppSection.ALICE -> WebServiceScreen(
-                title = "АЛИСА AI",
-                subtitle = "Нейросеть Яндекса",
-                url = "https://alice.yandex.ru"
-            )
-            AppSection.CHATGPT -> LockedPremiumScreen(onUnlockClick = { showProInfo = true })
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            when (section) {
+                AppSection.HOME -> HomeScreen(onProClick = { showProInfo = true })
+                AppSection.CLOUD -> WebServiceScreen(
+                    title = "CLOUD",
+                    subtitle = "Официальный сайт Cloud.com",
+                    url = "https://www.cloud.com"
+                )
+                AppSection.ALICE -> WebServiceScreen(
+                    title = "АЛИСА AI",
+                    subtitle = "Нейросеть Яндекса",
+                    url = "https://alice.yandex.ru"
+                )
+                AppSection.CHATGPT -> LockedPremiumScreen(onUnlockClick = { showProInfo = true })
+            }
         }
 
         Row(
@@ -328,6 +330,7 @@ private fun WebServiceScreen(title: String, subtitle: String, url: String) {
                     settings.javaScriptCanOpenWindowsAutomatically = false
                     webChromeClient = WebChromeClient()
                     webViewClient = WebViewClient()
+                    tag = url
                     loadUrl(url)
                 }
             },
