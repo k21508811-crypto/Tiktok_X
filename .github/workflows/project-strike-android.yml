@@ -1,4 +1,5 @@
 name: PROJECT STRIKE Android APK
+# CI: Godot 4.4 Android SDK, NDK, CMake and debug signing
 
 on:
   workflow_dispatch:
