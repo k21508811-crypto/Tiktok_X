@@ -41,7 +41,7 @@ func _process(delta: float) -> void:
 	if round_time <= 0.0:
 		_end_round("ВРЕМЯ ВЫШЛО")
 		return
-	var blue_alive := _alive_count("team_blue") + (1 if is_instance_valid(player) and not player.is_dead else 0)
+	var blue_alive := _alive_count("team_blue")
 	var red_alive := _alive_count("team_red")
 	if red_alive == 0:
 		_end_round("КОМАНДА BLUE ПОБЕДИЛА")
@@ -156,7 +156,7 @@ func _end_round(reason: String) -> void:
 	if round_over:
 		return
 	round_over = true
-	if reason.contains("BLUE") or (reason == "ВРЕМЯ ВЫШЛО" and _alive_count("team_blue") + (1 if not player.is_dead else 0) > _alive_count("team_red")):
+	if reason.contains("BLUE") or (reason == "ВРЕМЯ ВЫШЛО" and _alive_count("team_blue") > _alive_count("team_red")):
 		blue_score += 1
 		show_message("РАУНД ЗА BLUE  •  " + reason, 3.0)
 	else:
@@ -174,7 +174,7 @@ func _start_next_round() -> void:
 	for group_name in ["team_blue", "team_red"]:
 		for unit in get_tree().get_nodes_in_group(group_name):
 			if unit != player and is_instance_valid(unit):
-				unit.queue_free()
+				unit.free()
 	if is_instance_valid(player):
 		player.reset_for_round(Vector3(-20, 0, 0))
 	_spawn_teams()
