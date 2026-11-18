@@ -33,13 +33,7 @@ private val bg=Color(0xFF050507)
 private val accent=Color(0xFFFF3158)
 private val muted=Color(0xFFB8B8C0)
 private data class Clip(val id:String,val author:String,val title:String,val url:String,val likes:Int)
-private val clips=listOf(
- Clip("1","@nature_daily","Красота природы — короткая передышка","https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",12840),
- Clip("2","@movie_time","Небольшой кинематографичный момент","https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",8421),
- Clip("3","@travel_world","Путешествия начинаются с первого шага","https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",5310),
- Clip("4","@daily_video","Демонстрационный ролик номер четыре","https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",2940),
- Clip("5","@creator_x","Добро пожаловать в TikTok X","https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",19320)
-)
+private val clips=emptyList<Clip>()
 class MainActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);window.statusBarColor=android.graphics.Color.BLACK;window.navigationBarColor=android.graphics.Color.BLACK;setContent{TikTokXApp()}}
 }
@@ -87,7 +81,7 @@ class MainActivity:ComponentActivity(){
         Text(clip.author,color=Color.White,fontWeight=FontWeight.Bold,fontSize=16.sp)
         Text(clip.title,color=Color.White,fontSize=14.sp,modifier=Modifier.padding(top=8.dp))
         Text("♫ Original sound · TikTok X",color=Color.White,fontSize=12.sp,modifier=Modifier.padding(top=10.dp))
-        Text("Демонстрационный ролик",color=Color.White.copy(.7f),fontSize=10.sp)
+        Text("",color=Color.Transparent,fontSize=1.sp)
        }
        Column(Modifier.align(Alignment.BottomEnd).padding(end=12.dp,bottom=26.dp),horizontalAlignment=Alignment.CenterHorizontally){
         Box(Modifier.size(44.dp).background(Color.White,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Default.Person,null,tint=Color.DarkGray)}
