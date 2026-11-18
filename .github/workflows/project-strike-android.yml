@@ -44,9 +44,9 @@ jobs:
 
       - name: Create temporary Android debug keystore
         run: |
-          mkdir -p "$HOME/.android"
+          mkdir -p "$RUNNER_TEMP"
           keytool -genkeypair -v \
-            -keystore "$HOME/.android/debug.keystore" \
+            -keystore "$RUNNER_TEMP/debug.keystore" \
             -storepass android \
             -alias androiddebugkey \
             -keypass android \
@@ -73,7 +73,7 @@ jobs:
 
       - name: Export debug APK
         env:
-          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/../.android/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ runner.temp }}/debug.keystore
           GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
