@@ -146,7 +146,7 @@ func _build_mobile_controls() -> void:
 	controls.set("player", player)
 	controls_layer.add_child(controls)
 
-func _update_hud(hp: int, vest: int, current_ammo: int, reserve: int, is_reloading: bool, is_dead: bool) -> void:
+func update_hud(hp: int, vest: int, current_ammo: int, reserve: int, is_reloading: bool, is_dead: bool) -> void:
 	if is_instance_valid(status_label):
 		var state := "  RELOADING" if is_reloading else ""
 		if is_dead:
