@@ -2,6 +2,10 @@ name: Unity license activation
 
 on:
   workflow_dispatch:
+  push:
+    branches: [unity-migration]
+    paths:
+      - ".github/workflows/unity-license-activation.yml"
 
 permissions:
   contents: read
