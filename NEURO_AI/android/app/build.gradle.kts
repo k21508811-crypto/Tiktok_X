@@ -14,6 +14,23 @@ android {
         versionCode = 2
         versionName = "0.2.0"
     }
+
+    signingConfigs {
+        create("release") {
+            System.getenv("RELEASE_STORE_FILE")?.let { storeFile = file(it) }
+            storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
+
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
