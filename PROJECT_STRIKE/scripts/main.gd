@@ -23,7 +23,7 @@ func _ready() -> void:
 	_spawn_bots()
 	_build_hud()
 	_build_mobile_controls()
-	_update_hud(100, 100, 30, 90, false, false)
+	update_hud(100, 100, 30, 90, false, false)
 
 func _process(delta: float) -> void:
 	round_time += delta
