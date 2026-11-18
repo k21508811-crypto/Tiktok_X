@@ -1,23 +1,21 @@
 # NEURO AI
-Hybrid Android AI starter: Jetpack Compose client → FastAPI backend → configurable OpenAI-compatible model.
 
-## Backend
-Python 3.11+. From this directory:
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-Set AI_BASE_URL, AI_API_KEY and AI_MODEL in backend/.env. Keep the provider key on the server only.
+Android application shell that opens the official ChatGPT website inside an Android WebView.
 
-## Android
-Open NEURO_AI/android in Android Studio. Set NEURO_API_BASE_URL in android/gradle.properties to the HTTPS backend URL ending with /.
-The GitHub Actions workflow builds a debug APK.
+## Android build
 
-## Scope
-Included: Compose chat UI, FastAPI health/chat endpoints, provider adapter and CI build.
-Next: accounts, PostgreSQL history, memory controls, image input and voice.
-This is a starter, not a production-ready service.
+Open `NEURO_AI/android` in Android Studio, or run the GitHub Actions workflow. The debug APK is uploaded as `neuro-ai-debug-apk`.
+
+## How it works
+
+- Launches `https://chatgpt.com/` inside the app.
+- The user signs in with their own ChatGPT account.
+- JavaScript, DOM storage and cookies are enabled for the web app session.
+- Android Back navigates the web page history.
+- If the embedded login or page is unsupported on a device, use **Open in browser**.
+
+This is a WebView wrapper, not an official OpenAI Android client or an API integration. ChatGPT features, account limits, subscription entitlements and sign-in compatibility are controlled by OpenAI and may change. A ChatGPT subscription does not include API credits.
+
+## Privacy and security
+
+The app does not collect ChatGPT credentials or embed an API key. The ChatGPT website handles sign-in and its own session. Avoid adding code that reads page contents, passwords or session cookies.
