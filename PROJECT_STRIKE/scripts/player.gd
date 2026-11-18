@@ -15,6 +15,7 @@ var reloading := false
 var is_dead := false
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var camera: Camera3D
+var collision_shape: CollisionShape3D
 var fire_cooldown := 0.0
 var weapon_root: Node3D
 var hit_flash := 0.0
@@ -27,13 +28,13 @@ func _ready() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _build_collision() -> void:
-	var collision := CollisionShape3D.new()
+	collision_shape = CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.38
 	capsule.height = 1.8
-	collision.shape = capsule
-	collision.position.y = 0.9
-	add_child(collision)
+	collision_shape.shape = capsule
+	collision_shape.position.y = 0.9
+	add_child(collision_shape)
 
 func _build_camera() -> void:
 	camera = Camera3D.new()
@@ -158,7 +159,10 @@ func take_damage(amount: int) -> void:
 func _die() -> void:
 	is_dead = true
 	velocity = Vector3.ZERO
-	visible = false
+	if is_instance_valid(weapon_root):
+		weapon_root.visible = false
+	if is_instance_valid(collision_shape):
+		collision_shape.set_deferred("disabled", true)
 	set_physics_process(false)
 	set_process_unhandled_input(false)
 	var root := get_tree().current_scene
@@ -172,7 +176,10 @@ func _die() -> void:
 	reserve_ammo = 90
 	reloading = false
 	is_dead = false
-	visible = true
+	if is_instance_valid(weapon_root):
+		weapon_root.visible = true
+	if is_instance_valid(collision_shape):
+		collision_shape.set_deferred("disabled", false)
 	set_physics_process(true)
 	set_process_unhandled_input(true)
 	_update_hud()
