@@ -11,6 +11,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,9 +37,19 @@ private val purple = Color(0xFF9B55FF)
 private val muted = Color(0xFFB7AEC9)
 private data class Service(val title: String, val url: String, val subtitle: String)
 private val services = listOf(
-    Service("ChatGPT", "https://chatgpt.com/", "Встроенный веб-чат ChatGPT"),
-    Service("Cloud", "https://www.cloud.com/", "Официальный сайт Cloud"),
-    Service("Алиса AI", "https://alice.yandex.ru/", "ИИ-помощник Яндекса")
+    Service("ChatGPT", "https://chatgpt.com/", "Универсальный ИИ-помощник"),
+    Service("Gemini", "https://gemini.google.com/app", "ИИ от Google"),
+    Service("Copilot", "https://copilot.microsoft.com/", "ИИ от Microsoft"),
+    Service("DeepSeek", "https://chat.deepseek.com/", "Диалог и анализ"),
+    Service("Perplexity", "https://www.perplexity.ai/", "ИИ-поиск с источниками"),
+    Service("Qwen", "https://chat.qwen.ai/", "Модели Qwen"),
+    Service("Mistral", "https://chat.mistral.ai/", "Le Chat от Mistral"),
+    Service("HuggingChat", "https://huggingface.co/chat/", "Открытые модели"),
+    Service("Claude", "https://claude.ai/", "ИИ от Anthropic"),
+    Service("Grok", "https://grok.com/", "ИИ от xAI"),
+    Service("Алиса AI", "https://alice.yandex.ru/", "ИИ от Яндекса"),
+    Service("Poe", "https://poe.com/", "Каталог ИИ-ботов"),
+    Service("Duck.ai", "https://duck.ai/", "Приватный ИИ-чат")
 )
 
 class MainActivity : ComponentActivity() {
@@ -97,9 +110,9 @@ private fun NeuroApp() {
                 item {
                     Text("ИИ-СЕРВИСЫ", color = muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                     Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                         services.forEach { service ->
-                            ServiceTile(service.title, selected == service.title, Modifier.weight(1f)) {
+                            ServiceTile(service.title, selected == service.title, Modifier) {
                                 currentWebView = null
                                 selected = service.title
                             }
@@ -141,7 +154,7 @@ private fun NeuroApp() {
                     if (selected == "PREMIUM") LockedPremium { premiumInfo = true }
                     else {
                         val url = services.firstOrNull { it.title == selected }?.url ?: services[0].url
-                        WebPanel(url) { currentWebView = it }
+                        key(url) { WebPanel(url) { currentWebView = it } }
                     }
                 }
             }
@@ -172,10 +185,14 @@ private fun NeuroApp() {
 
 @Composable
 private fun ServiceTile(title: String, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val tileColor by animateColorAsState(
+        targetValue = if (active) Color(0xFF6D35A8) else panel,
+        label = "assistant-tile"
+    )
     Card(
         modifier = modifier.height(58.dp).clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = if (active) Color(0xFF382052) else panel)
+        colors = CardDefaults.cardColors(containerColor = tileColor)
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(title, color = if (active) Color.White else muted, fontWeight = FontWeight.Bold, fontSize = 11.sp)
