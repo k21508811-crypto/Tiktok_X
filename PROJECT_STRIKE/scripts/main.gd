@@ -157,14 +157,14 @@ func update_hud(hp: int, vest: int, current_ammo: int, reserve: int, is_reloadin
 
 func register_kill() -> void:
 	kills += 1
-	_update_hud(player.health, player.armor, player.ammo, player.reserve_ammo, player.reloading, player.is_dead)
+	update_hud(player.health, player.armor, player.ammo, player.reserve_ammo, player.reloading, player.is_dead)
 	show_message("TARGET ELIMINATED", 0.8)
 
 func player_died() -> void:
 	deaths += 1
 	show_message("YOU WERE ELIMINATED — RESPAWNING", 2.5)
 	if is_instance_valid(player):
-		_update_hud(player.health, player.armor, player.ammo, player.reserve_ammo, false, true)
+		update_hud(player.health, player.armor, player.ammo, player.reserve_ammo, false, true)
 
 func show_message(value: String, duration: float = 1.5) -> void:
 	if is_instance_valid(message_label):
