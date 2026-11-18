@@ -100,7 +100,7 @@ jobs:
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p PROJECT_STRIKE/build
-          godot --headless --verbose --path PROJECT_STRIKE --export-debug "Android" PROJECT_STRIKE/build/PROJECT_STRIKE-debug.apk
+          godot --headless --verbose --path PROJECT_STRIKE --export-debug "Android" build/PROJECT_STRIKE-debug.apk
 
       - name: Verify APK output
         run: |
