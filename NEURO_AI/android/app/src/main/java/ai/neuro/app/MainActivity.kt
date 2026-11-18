@@ -87,6 +87,20 @@ private fun NeuroApp() {
                 Image(painterResource(R.drawable.neuro_icon), "NEURO AI", Modifier.size(250.dp), contentScale = ContentScale.Fit)
                 Spacer(Modifier.height(22.dp))
                 Text("ИНТЕЛЛЕКТ. ВОЗМОЖНОСТИ. БУДУЩЕЕ.", color = Color(0xFFD8C6FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(14.dp))
+                Surface(
+                    color = Color(0xFF3A2454),
+                    shape = RoundedCornerShape(50.dp)
+                ) {
+                    Text(
+                        "ПРЕД ЗАКАЗ (БЕТА)",
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
+                        color = Color(0xFFE5D1FF),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp
+                    )
+                }
                 Spacer(Modifier.height(44.dp))
                 Button(
                     onClick = { intro = false },
@@ -104,6 +118,13 @@ private fun NeuroApp() {
                 Column(Modifier.weight(1f)) {
                     Text("NEURO AI", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                     Text("Интеллект. Возможности. Будущее.", fontSize = 10.sp, color = muted)
+                    Text(
+                        "ПРЕД ЗАКАЗ (БЕТА)",
+                        color = Color(0xFFE0C5FF),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.6.sp
+                    )
                 }
                 Text("PRO", color = Color(0xFFD5B3FF), fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
