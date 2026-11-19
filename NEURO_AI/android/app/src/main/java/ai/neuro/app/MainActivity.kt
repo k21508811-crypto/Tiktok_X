@@ -56,7 +56,19 @@ private val services = listOf(
 
 class MainActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState)
-  setContent { MaterialTheme(colorScheme=darkColorScheme(primary=purple,background=bg,surface=panel,onPrimary=Color.White,onBackground=Color.White,onSurface=Color.White)){NeuroApp()} }
+  setContent {
+   MaterialTheme(colorScheme=darkColorScheme(
+    primary=Color(0xFFB65CFF),onPrimary=Color.White,
+    background=Color(0xFF08060D),onBackground=Color(0xFFF7F0FF),
+    surface=Color(0xFF191321),onSurface=Color(0xFFF7F0FF),
+    surfaceVariant=Color(0xFF281B34),onSurfaceVariant=Color(0xFFD2C4DF),
+    secondary=Color(0xFFD6A6FF),onSecondary=Color(0xFF170D20)
+   )) {
+    Surface(modifier=Modifier.fillMaxSize(),color=Color(0xFF08060D),contentColor=Color(0xFFF7F0FF)) {
+     NeuroApp()
+    }
+   }
+  }
  }
 }
 
