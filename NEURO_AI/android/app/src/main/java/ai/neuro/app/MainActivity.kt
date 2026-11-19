@@ -6,6 +6,9 @@ import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.content.Intent
+import android.provider.Settings
+import kotlinx.coroutines.delay
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -69,7 +72,15 @@ class MainActivity:ComponentActivity(){
  var web by remember{mutableStateOf<WebView?>(null)}
  var favorites by remember{mutableStateOf(prefs.getStringSet("favorites",emptySet())?.toSet()?:emptySet())}
  var favoriteOnly by remember{mutableStateOf(false)}
+ var startupComplete by remember{mutableStateOf(prefs.getBoolean("startup_complete",false))}
+ var activationSkipped by remember{mutableStateOf(prefs.getBoolean("activation_skipped",false))}
+ var proActivated by remember{mutableStateOf(prefs.getBoolean("pro_activated",false))}
  BackHandler(enabled=web?.canGoBack()==true){web?.goBack()}
+ if(!startupComplete){ StartupScreen(onComplete={startupComplete=true;prefs.edit().putBoolean("startup_complete",true).apply()}); return }
+ if(!activationSkipped && !proActivated){ ActivationScreen(
+   onActivate={key-> if(key=="PEO-0182"){proActivated=true;prefs.edit().putBoolean("pro_activated",true).apply();true}else false},
+   onSkip={activationSkipped=true;prefs.edit().putBoolean("activation_skipped",true).apply()}
+ ); return }
 
  Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF090711),bg,Color(0xFF12091B)))).statusBarsPadding().navigationBarsPadding()){
   Row(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=13.dp),verticalAlignment=Alignment.CenterVertically){
@@ -142,7 +153,50 @@ class MainActivity:ComponentActivity(){
   dismissButton={TextButton(onClick={privacy=false}){Text("ЗАКРЫТЬ",color=muted)}})
 }
 
-@SuppressLint("SetJavaScriptEnabled")
+
+@Composable private fun StartupScreen(onComplete:()->Unit){
+ var seconds by remember{mutableIntStateOf(30)}
+ var slide by remember{mutableIntStateOf(0)}
+ val tips=listOf("ИИ анализирует текст и помогает находить идеи.","Проверяй важные факты по нескольким источникам.","Не отправляй в ИИ пароли и личные данные.","Чёткий запрос обычно даёт более полезный ответ.","Сравнивай ответы разных моделей перед решением.")
+ LaunchedEffect(Unit){
+  while(seconds>0){delay(1000);seconds--;slide=(slide+1)%5}
+  onComplete()
+ }
+ Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF05030A),Color(0xFF180A27),Color(0xFF07050C)))).statusBarsPadding().navigationBarsPadding().padding(24.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+  Box(Modifier.fillMaxWidth().weight(1f).background(Brush.linearGradient(listOf(Color(0xFF36105A),Color(0xFF100B19),Color(0xFF6E18B8))),RoundedCornerShape(28.dp)),contentAlignment=Alignment.Center){
+   Column(horizontalAlignment=Alignment.CenterHorizontally){
+    Text(listOf("◈","✦","⌘","⬡","✧")[slide],fontSize=76.sp,color=Color(0xFFE6C6FF),fontWeight=FontWeight.Black)
+    Spacer(Modifier.height(14.dp));Text("NEURO AI",fontSize=30.sp,fontWeight=FontWeight.Black,letterSpacing=2.sp)
+    Text("ИНТЕЛЛЕКТ. ВОЗМОЖНОСТИ. БУДУЩЕЕ.",fontSize=9.sp,color=muted,letterSpacing=1.sp)
+   }
+  }
+  Spacer(Modifier.height(22.dp))
+  Text("ПОДГОТОВКА ПРИЛОЖЕНИЯ",fontSize=12.sp,color=Color(0xFFE2C9FF),fontWeight=FontWeight.Bold,letterSpacing=1.3.sp)
+  Spacer(Modifier.height(10.dp));Text("$seconds",fontSize=46.sp,fontWeight=FontWeight.ExtraBold,color=Color.White)
+  Text("секунд до завершения",fontSize=11.sp,color=muted)
+  Spacer(Modifier.height(16.dp));LinearProgressIndicator(progress={((30-seconds)/30f)},modifier=Modifier.fillMaxWidth().height(7.dp),color=Color(0xFFB04CFF),trackColor=Color(0xFF30213E))
+  Spacer(Modifier.height(18.dp));Text("МИНИ-УРОК ПО ИИ",fontSize=10.sp,color=Color(0xFFDDBBFF),fontWeight=FontWeight.Bold)
+  Spacer(Modifier.height(7.dp));Text(tips[slide],fontSize=13.sp,color=Color.White,lineHeight=19.sp)
+  Spacer(Modifier.height(20.dp));Text("Изображения и советы меняются автоматически",fontSize=10.sp,color=muted)
+ }
+}
+
+@Composable private fun ActivationScreen(onActivate:(String)->Boolean,onSkip:()->Unit){
+ var key by remember{mutableStateOf("")};var error by remember{mutableStateOf(false)}
+ Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF08050D),Color(0xFF21102F),Color(0xFF08050D)))).statusBarsPadding().navigationBarsPadding().padding(24.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+  Text("♛",fontSize=66.sp,color=Color(0xFFD7A5FF))
+  Spacer(Modifier.height(14.dp));Text("АКТИВАЦИЯ NEURO PRO",fontSize=22.sp,fontWeight=FontWeight.ExtraBold)
+  Spacer(Modifier.height(8.dp));Text("Введите ключ доступа или продолжите в бесплатной версии.",fontSize=13.sp,color=muted,lineHeight=19.sp)
+  Spacer(Modifier.height(24.dp))
+  OutlinedTextField(value=key,onValueChange={key=it.uppercase();error=false},modifier=Modifier.fillMaxWidth(),singleLine=true,label={Text("Ключ активации")},placeholder={Text("PEO-0182")},colors=OutlinedTextFieldDefaults.colors(focusedBorderColor=Color(0xFFB04CFF),focusedLabelColor=Color(0xFFD9B5FF),cursorColor=Color(0xFFB04CFF)))
+  if(error){Spacer(Modifier.height(6.dp));Text("Ключ не принят. Проверьте введённые символы.",color=Color(0xFFFF8A9A),fontSize=11.sp)}
+  Spacer(Modifier.height(16.dp))
+  Button(onClick={error=!onActivate(key.trim())},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF7A22C8))){Text("АКТИВИРОВАТЬ PRO",fontWeight=FontWeight.Bold)}
+  Spacer(Modifier.height(8.dp));OutlinedButton(onClick=onSkip,modifier=Modifier.fillMaxWidth()){Text("ПРОПУСТИТЬ — БЕСПЛАТНАЯ ВЕРСИЯ")}
+  Spacer(Modifier.height(18.dp));Text("Ключ PEO-0182 сейчас работает как локальный бета-код на этом устройстве. Для коммерческого выпуска нужна серверная проверка лицензий.",fontSize=10.sp,color=muted,lineHeight=15.sp)
+ }
+}
+\n@SuppressLint("SetJavaScriptEnabled")
 @Composable private fun WebPanel(url:String,allowThirdParty:Boolean,onCreated:(WebView)->Unit){
  val context=LocalContext.current
  AndroidView(Modifier.fillMaxWidth().height(500.dp).background(Color.White,RoundedCornerShape(18.dp)),factory={
