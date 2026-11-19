@@ -1,6 +1,7 @@
 package ai.neuro.app
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun NeuroDirectory() {
     val context = LocalContext.current
-    val preferences = remember { context.getSharedPreferences("neuro_ai", MODE_PRIVATE) }
+    val preferences = remember { context.getSharedPreferences("neuro_ai", Context.MODE_PRIVATE) }
     var search by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Все") }
     var favoritesOnly by remember { mutableStateOf(false) }
