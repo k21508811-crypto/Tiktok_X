@@ -1,0 +1,53 @@
+workflows:
+  neuro-ai-release-apk:
+    name: NEURO AI — Release APK only
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      vars:
+        ANDROID_PROJECT_DIR: NEURO_AI/android
+    triggering:
+      branch_patterns:
+        - pattern: feature/neuro-ai-android
+          include: true
+          source: true
+    scripts:
+      - name: Check Android build tools
+        script: |
+          set -euo pipefail
+          java -version
+          gradle --version
+          test -f "$CM_BUILD_DIR/$ANDROID_PROJECT_DIR/settings.gradle.kts"
+          test -f "$CM_BUILD_DIR/$ANDROID_PROJECT_DIR/app/build.gradle.kts"
+      - name: Create temporary signing key for this test build
+        script: |
+          set -euo pipefail
+          STORE="$CM_BUILD_DIR/neuro-ai-temporary-release.jks"
+          PASS="$(openssl rand -hex 24)"
+          keytool -genkeypair -v \
+            -keystore "$STORE" \
+            -storepass "$PASS" \
+            -keypass "$PASS" \
+            -alias neuroai \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=NEURO AI, OU=Android, O=NEURO AI, C=NL"
+          echo "RELEASE_STORE_FILE=$STORE" >> "$CM_ENV"
+          echo "RELEASE_STORE_PASSWORD=$PASS" >> "$CM_ENV"
+          echo "RELEASE_KEY_ALIAS=neuroai" >> "$CM_ENV"
+          echo "RELEASE_KEY_PASSWORD=$PASS" >> "$CM_ENV"
+      - name: Build Release APK only
+        script: |
+          set -euo pipefail
+          gradle -p "$CM_BUILD_DIR/$ANDROID_PROJECT_DIR" :app:assembleRelease
+      - name: Verify Release APK signature
+        script: |
+          set -euo pipefail
+          APK="$CM_BUILD_DIR/$ANDROID_PROJECT_DIR/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          APKSIGNER="$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose "$APK"
+    artifacts:
+      - NEURO_AI/android/app/build/outputs/apk/release/app-release.apk
