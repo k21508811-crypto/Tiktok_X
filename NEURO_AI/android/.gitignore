@@ -1,0 +1,4 @@
+# Never commit Android release signing material
+*.jks
+*.keystore
+keystore.properties
