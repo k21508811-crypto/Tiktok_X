@@ -119,7 +119,7 @@ class MainActivity:ComponentActivity(){
     }
    }
    item{
-    Text("ВЫБРАНО: \${selected.title}",fontSize=13.sp,fontWeight=FontWeight.Bold)
+    Text("ВЫБРАНО: ${selected.title}",fontSize=13.sp,fontWeight=FontWeight.Bold)
     Text(selected.note,fontSize=10.sp,color=muted)
     Spacer(Modifier.height(7.dp))
     WebPanel(selected.url,cookieChoice==true){web=it}
