@@ -196,10 +196,10 @@ class MainActivity:ComponentActivity(){
   Spacer(Modifier.height(18.dp));Text("Ключ PEO-0182 сейчас работает как локальный бета-код на этом устройстве. Для коммерческого выпуска нужна серверная проверка лицензий.",fontSize=10.sp,color=muted,lineHeight=15.sp)
  }
 }
-\n@SuppressLint("SetJavaScriptEnabled")
+@SuppressLint("SetJavaScriptEnabled")
 @Composable private fun WebPanel(url:String,allowThirdParty:Boolean,onCreated:(WebView)->Unit){
  val context=LocalContext.current
- AndroidView(Modifier.fillMaxWidth().height(500.dp).background(Color.White,RoundedCornerShape(18.dp)),factory={
+ AndroidView(factory={
   WebView(context).apply{
    setBackgroundColor(android.graphics.Color.WHITE)
    settings.javaScriptEnabled=true;settings.domStorageEnabled=true;settings.loadsImagesAutomatically=true
@@ -208,5 +208,5 @@ class MainActivity:ComponentActivity(){
    CookieManager.getInstance().setAcceptCookie(true);CookieManager.getInstance().setAcceptThirdPartyCookies(this,allowThirdParty)
    webViewClient=WebViewClient();webChromeClient=WebChromeClient();onCreated(this);loadUrl(url)
   }
- },update={CookieManager.getInstance().setAcceptThirdPartyCookies(it,allowThirdParty);onCreated(it)})
+ },modifier=Modifier.fillMaxWidth().height(500.dp).background(Color.White,RoundedCornerShape(18.dp)),update={CookieManager.getInstance().setAcceptThirdPartyCookies(it,allowThirdParty);onCreated(it)})
 }
